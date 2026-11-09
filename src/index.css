@@ -1,0 +1,130 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+    --aic-navy: #0e2a58;
+    --aic-dark: #0a1f42;
+    --aic-blue: #12366e;
+    --aic-blue-bright: #164b96;
+    --aic-gold: #c59b27;
+    --aic-lightgold: #f4ecd8;
+    --aic-gold-dark: #997316;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv02' 1, 'cv03' 1, 'cv04' 1, 'cv11' 1;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: #0f172a;
+    background-color: #f8fafc;
+    font-size: 0.9375rem; /* 15px Loom baseline */
+    line-height: 1.6;
+    letter-spacing: -0.011em;
+  }
+
+  /* -------------------------------------------------------------
+     LOOM & ANTIGRAVITY ENTERPRISE TYPOGRAPHY SCALE
+     Disciplined hierarchy, tight negative tracking, balanced leading
+     ------------------------------------------------------------- */
+  h1, .h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 4vw + 1rem, 3.5rem);
+    letter-spacing: -0.035em;
+    font-weight: 700;
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+
+  h2, .h2 {
+    font-family: var(--font-display);
+    font-size: clamp(1.75rem, 2.5vw + 0.5rem, 2.25rem);
+    letter-spacing: -0.025em;
+    font-weight: 700;
+    line-height: 1.18;
+    text-wrap: balance;
+  }
+
+  h3, .h3 {
+    font-family: var(--font-display);
+    font-size: clamp(1.25rem, 1.5vw + 0.25rem, 1.5rem);
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  h4, .h4 {
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    letter-spacing: -0.015em;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  h5, .h5 {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  h6, .h6 {
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    letter-spacing: -0.005em;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
+  /* Strict Enterprise UI Elements Typography */
+  button,
+  input,
+  select,
+  textarea,
+  label,
+  nav,
+  th,
+  td,
+  [role="button"],
+  [role="tab"],
+  [role="dialog"],
+  .btn,
+  .badge {
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
+    font-feature-settings: 'cv02' 1, 'cv11' 1;
+  }
+}
+
+/* Custom scrollbars for data tables and panels */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Antigravity subtle focus rings */
+:focus-visible {
+  outline: 2px solid #1a4b8c;
+  outline-offset: 2px;
+}

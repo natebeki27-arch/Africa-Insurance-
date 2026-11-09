@@ -1,0 +1,139 @@
+{
+  "entities": {
+    "users": {
+      "fields": {
+        "uid": { "type": "string" },
+        "accountType": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string" },
+        "emailVerified": { "type": "boolean" },
+        "phone": { "type": "string" },
+        "phoneVerified": { "type": "boolean" },
+        "branchId": { "type": "string" },
+        "accountStatus": { "type": "string" },
+        "registrationChannel": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "customers": {
+      "fields": {
+        "customerId": { "type": "string" },
+        "authUid": { "type": "string" },
+        "customerNumber": { "type": "string" },
+        "customerType": { "type": "string" },
+        "personalInformation": { "type": "map" },
+        "contactInformation": { "type": "map" },
+        "address": { "type": "map" },
+        "identityVerificationStatus": { "type": "string" },
+        "accountStatus": { "type": "string" },
+        "registrationChannel": { "type": "string" },
+        "createdByOperatorId": { "type": "string" },
+        "branchId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "products": {
+      "fields": {
+        "productId": { "type": "string" },
+        "slug": { "type": "string" },
+        "productName": { "type": "string" },
+        "productCategory": { "type": "string" },
+        "shortDescription": { "type": "string" },
+        "fullDescription": { "type": "string" },
+        "disclaimer": { "type": "string" },
+        "isDemonstration": { "type": "boolean" },
+        "benefits": { "type": "array" },
+        "coverageSections": { "type": "array" },
+        "exclusions": { "type": "array" },
+        "eligibilityRules": { "type": "array" },
+        "requiredDocuments": { "type": "array" },
+        "faq": { "type": "array" },
+        "applicationSchema": { "type": "array" },
+        "quotationConfiguration": { "type": "map" },
+        "underwritingConfiguration": { "type": "map" },
+        "policyTemplateId": { "type": "string" },
+        "renewalConfiguration": { "type": "map" },
+        "publicStatus": { "type": "string" },
+        "availability": { "type": "string" },
+        "version": { "type": "number" },
+        "publishedAt": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "applications": {
+      "fields": {
+        "applicationId": { "type": "string" },
+        "applicationNumber": { "type": "string" },
+        "customerId": { "type": "string" },
+        "productId": { "type": "string" },
+        "applicantInformation": { "type": "map" },
+        "applicationAnswers": { "type": "map" },
+        "uploadedDocumentIds": { "type": "array" },
+        "applicationStatus": { "type": "string" },
+        "branchId": { "type": "string" },
+        "createdByOperatorId": { "type": "string" },
+        "quotationId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "submittedAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "policies": {
+      "fields": {
+        "policyId": { "type": "string" },
+        "policyNumber": { "type": "string" },
+        "verificationCode": { "type": "string" },
+        "verificationCodeHash": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "maskedInsuredName": { "type": "string" },
+        "productId": { "type": "string" },
+        "insuredSubject": { "type": "string" },
+        "totalPremiumETB": { "type": "number" },
+        "currency": { "type": "string" },
+        "startDate": { "type": "string" },
+        "expiryDate": { "type": "string" },
+        "policyStatus": { "type": "string" },
+        "policyDocumentId": { "type": "string" },
+        "issuedAt": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "paymentAttempts": {
+      "fields": {
+        "paymentAttemptId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "applicationId": { "type": "string" },
+        "quotationId": { "type": "string" },
+        "provider": { "type": "string" },
+        "merchantReference": { "type": "string" },
+        "providerReference": { "type": "string" },
+        "amountETB": { "type": "number" },
+        "currency": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "idempotencyKey": { "type": "string" },
+        "verificationStatus": { "type": "string" },
+        "verifiedAt": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "auditLogs": {
+      "fields": {
+        "auditId": { "type": "string" },
+        "actorUid": { "type": "string" },
+        "actorRole": { "type": "string" },
+        "action": { "type": "string" },
+        "resourceType": { "type": "string" },
+        "resourceId": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "reason": { "type": "string" },
+        "correlationId": { "type": "string" }
+      }
+    }
+  }
+}

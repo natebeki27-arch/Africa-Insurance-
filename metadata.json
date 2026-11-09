@@ -1,0 +1,6 @@
+{
+  "name": "Africa Insurance Company (AIC) — Digital Insurance Platform",
+  "description": "Comprehensive digital insurance platform for Africa Insurance Company (AIC), Ethiopia. Featuring customer portal, direct-sales operator onboarding, underwriting workspace, e-policy issuance engine, public policy verification, and Chapa payment integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

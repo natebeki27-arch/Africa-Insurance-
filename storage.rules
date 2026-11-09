@@ -1,0 +1,45 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isStaff() {
+      return isAuthenticated() && (
+        request.auth.token.role in ['underwriter', 'staff', 'admin']
+      );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Private customer documents vault
+    match /documents/{customerId}/{documentId} {
+      allow read: if isOwner(customerId) || isStaff();
+      allow write: if (isOwner(customerId) || isStaff())
+                   && request.resource.size < 10 * 1024 * 1024 // 10MB limit
+                   && request.resource.contentType.matches('application/pdf|image/jpeg|image/png');
+    }
+
+    // Policy documents and issued certificates
+    match /policies/{policyId}/{fileName} {
+      allow read: if isAuthenticated(); // Controlled by server-side signed URLs or auth check
+      allow write: if isStaff();
+    }
+
+    // Public brand assets (e.g. logos, public brochures)
+    match /public/{fileName} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+  }
+}

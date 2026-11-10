@@ -53,7 +53,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, navi
   const handleStartApplication = () => {
     const user = store.getCurrentUser();
     if (!user) {
-      navigate('/login?redirect=apply&product=' + product.productId);
+      navigate(`/login?redirect=${encodeURIComponent(`/portal?action=new_app&productId=${product.productId}`)}`);
     } else if (user.accountType === 'operator') {
       navigate(`/operator?action=new_app&productId=${product.productId}`);
     } else {

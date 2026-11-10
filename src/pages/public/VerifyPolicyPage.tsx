@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { store } from '../../services/store';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { Shield, Search, CheckCircle2, AlertOctagon, Clock, XCircle, QrCode } from 'lucide-react';
 import { PolicyVerificationLog, InsurancePolicy } from '../../types/insurance';
 
@@ -8,6 +9,7 @@ interface VerifyPolicyPageProps {
 }
 
 export const VerifyPolicyPage: React.FC<VerifyPolicyPageProps> = ({ initialCode = '' }) => {
+  const { t } = useLanguage();
   const [code, setCode] = useState(initialCode);
   const [result, setResult] = useState<{
     outcome: PolicyVerificationLog['verificationOutcome'];
@@ -83,12 +85,12 @@ export const VerifyPolicyPage: React.FC<VerifyPolicyPageProps> = ({ initialCode 
             <Shield className="w-6 h-6" />
           </div>
           <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[#12366e] uppercase tracking-wider">
-            <span>Authoritative E-Policy Verification</span>
+            <span>{t('nav.verify')}</span>
             <span aria-hidden="true">·</span>
             <span>Ethiopian Registry</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#12366e] tracking-tight">
-            Verify Policy Authenticity
+            {t('pages.verifyTitle')}
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
             Enter the unique verification code printed on your official Africa Insurance Company (AIC) policy schedule or certificate to validate its live status against our registry.

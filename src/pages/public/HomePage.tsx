@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { store } from '../../services/store';
+import { getDestinationForAccount } from '../../services/authService';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { 
   Shield, 
   ArrowRight, 
@@ -354,12 +356,11 @@ const TESTIMONIALS: Testimonial[] = [
 
 export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
   const publishedProducts = store.getPublishedProducts();
+  const { t } = useLanguage();
 
   // 1. Hero Slidable Showcase State (5 Slides from africainsurancesc.com)
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
   const [isHeroPaused, setIsHeroPaused] = useState(false);
-  const [googleAuthModalOpen, setGoogleAuthModalOpen] = useState(false);
-  const [isSigningIn, setIsSigningIn] = useState(false);
 
   // Auto-advance hero slides every 5.0 seconds
   useEffect(() => {
@@ -376,22 +377,6 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
 
   const handlePrevHero = () => {
     setCurrentSlideIdx((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length);
-  };
-
-  const handleGoogleCustomerSignIn = () => {
-    setIsSigningIn(true);
-    setTimeout(() => {
-      store.switchRole('customer');
-      const cur = store.getCurrentUser();
-      if (cur) {
-        cur.email = 'customer.google@gmail.com';
-        cur.firstName = 'Google';
-        cur.lastName = 'User';
-      }
-      setIsSigningIn(false);
-      setGoogleAuthModalOpen(false);
-      navigate('/portal?action=new-application');
-    }, 600);
   };
 
   // 2. Customer Testimonials Carousel State (16 items, 4 visible at once)
@@ -519,31 +504,38 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
         <div 
           onMouseEnter={() => setIsHeroPaused(true)}
           onMouseLeave={() => setIsHeroPaused(false)}
-          className="relative z-10 max-w-7xl mx-auto px-12 sm:px-16 lg:px-24 py-24 sm:py-32 lg:py-36 flex flex-col justify-center min-h-[580px] lg:min-h-[640px]"
+          className="relative z-10 max-w-7xl mx-auto px-12 sm:px-16 lg:px-24 py-14 sm:py-28 lg:py-36 flex flex-col justify-center min-h-[380px] sm:min-h-[560px] lg:min-h-[640px]"
         >
           {/* Top Active Slide Typography & Content with Smooth 5s Transition Effect */}
           <div 
             key={activeSlide.id}
-            className="max-w-3xl space-y-6 [text-shadow:_0_2px_12px_rgba(0,0,0,0.35)] transition-all duration-700 ease-in-out animate-in fade-in slide-in-from-bottom-2"
+            className="max-w-3xl space-y-4 sm:space-y-6 [text-shadow:_0_2px_12px_rgba(0,0,0,0.35)] transition-all duration-700 ease-in-out animate-in fade-in slide-in-from-bottom-2"
           >
             {/* Main Dynamic Headline */}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.08] text-balance font-sans transition-all duration-500">
-              {activeSlide.title}
+            <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.12] sm:leading-[1.08] text-balance font-sans transition-all duration-500">
+              {t(`hero.slide${activeSlide.id}.title`, activeSlide.title)}
             </h1>
 
             {/* Description Paragraph */}
-            <p className="text-base sm:text-lg text-slate-100 leading-relaxed font-sans font-normal tracking-[-0.011em] max-w-2xl transition-all duration-500">
-              {activeSlide.description}
+            <p className="text-xs sm:text-lg text-slate-100 leading-relaxed font-sans font-normal tracking-[-0.011em] max-w-2xl transition-all duration-500 line-clamp-3 sm:line-clamp-none">
+              {t(`hero.slide${activeSlide.id}.desc`, activeSlide.description)}
             </p>
 
             {/* Action Button: Get Started */}
-            <div className="flex flex-wrap items-center gap-4 pt-4">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2 sm:pt-4">
               <button
-                onClick={() => setGoogleAuthModalOpen(true)}
-                className="bg-white hover:bg-slate-100 text-slate-900 px-7 py-3.5 rounded-xl text-sm font-semibold tracking-tight transition-all shadow-lg hover:shadow-xl flex items-center gap-2.5 group whitespace-nowrap cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                onClick={() => {
+                  const currentUser = store.getCurrentUser();
+                  if (currentUser) {
+                    navigate(getDestinationForAccount(currentUser));
+                  } else {
+                    navigate('/login');
+                  }
+                }}
+                className="bg-white hover:bg-slate-100 text-slate-900 px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl text-xs sm:text-sm font-semibold tracking-tight transition-all shadow-lg hover:shadow-xl flex items-center gap-2 sm:gap-2.5 group whitespace-nowrap cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
-                <span>Get Started</span>
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                <span>{t('hero.getStarted')}</span>
+                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:translate-x-1" />
               </button>
             </div>
           </div>
@@ -566,141 +558,68 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
         </div>
       </section>
 
-      {/* Google Account Creation / Sign-In Modal */}
-      {googleAuthModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full p-7 sm:p-8 shadow-2xl border border-slate-200 space-y-6 relative">
-            <button
-              onClick={() => setGoogleAuthModalOpen(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-            >
-              ✕
-            </button>
-
-            <div className="text-center space-y-2">
-              <div className="w-13 h-13 rounded-2xl bg-[#12366e] text-[#f0cb5a] mx-auto flex items-center justify-center mb-3 shadow-md">
-                <Shield className="w-7 h-7" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                Get Started with AIC Insurance
-              </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Sign in with your Google email to instantly activate your digital account, choose insurance plans, and purchase policies online.
-              </p>
-            </div>
-
-            <div className="space-y-3 pt-2">
-              <button
-                onClick={handleGoogleCustomerSignIn}
-                disabled={isSigningIn}
-                className="w-full bg-white hover:bg-slate-50 border border-slate-300 active:bg-slate-100 text-slate-800 font-semibold py-3.5 px-4 rounded-xl text-sm transition-all shadow-sm flex items-center justify-center gap-3 cursor-pointer hover:border-slate-400 hover:shadow-md"
-              >
-                {isSigningIn ? (
-                  <div className="w-5 h-5 border-2 border-slate-400 border-t-slate-800 rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                    />
-                  </svg>
-                )}
-                <span>{isSigningIn ? 'Activating Account...' : 'Continue with Google'}</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setGoogleAuthModalOpen(false);
-                  navigate('/insurance');
-                }}
-                className="w-full text-center text-xs text-[#12366e] hover:text-[#0e2a58] font-semibold py-2 transition-colors cursor-pointer"
-              >
-                Or Browse Insurance Products Without Sign-In →
-              </button>
-            </div>
-
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Instant e-policy issuance & National Bank of Ethiopia registered.</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* SECTION 2: PRODUCTS GRID SECTION */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-28">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 pb-6 border-b border-slate-200/80">
+      <section className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-12 sm:py-24">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 mb-7 sm:mb-12 pb-4 sm:pb-6 border-b border-slate-200/80">
           <div>
-            <div className="text-xs font-semibold text-[#12366e] uppercase tracking-wider mb-2">
-              Statutory Risk Coverage
+            <div className="text-[11px] sm:text-xs font-semibold text-[#12366e] uppercase tracking-wider mb-1.5 sm:mb-2">
+              {t('home.productsEyebrow')}
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
-              Insurance Solutions
+            <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight">
+              {t('home.productsTitle')}
             </h2>
-            <p className="text-sm text-slate-500 mt-2 max-w-xl">
-              Tailored risk protection for personal, business, logistics, and industrial requirements across Ethiopia.
+            <p className="text-xs sm:text-sm text-slate-500 mt-1.5 sm:mt-2 max-w-xl">
+              {t('home.productsSubtitle')}
             </p>
           </div>
           <button
             onClick={() => navigate('/insurance')}
             className="text-xs font-semibold text-[#12366e] hover:text-[#184486] flex items-center gap-1.5 shrink-0 cursor-pointer"
           >
-            <span>View All Products & Schedules</span>
+            <span>{t('home.productsAll')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-6 lg:gap-8">
           {publishedProducts.slice(0, 6).map((product) => (
             <div
               key={product.productId}
-              className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between hover:shadow-md transition-shadow group"
+              className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 flex flex-col justify-between hover:shadow-md transition-shadow group"
             >
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-100 flex items-center justify-center">
                     {getCategoryIcon(product.productCategory)}
                   </div>
-                  <span className="text-[11px] font-mono font-medium text-slate-500 uppercase">
+                  <span className="text-[10px] sm:text-[11px] font-mono font-medium text-slate-500 uppercase">
                     {product.productCategory}
                   </span>
                 </div>
 
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 group-hover:text-[#12366e] transition-colors">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-[#12366e] transition-colors">
                     {product.productName}
                   </h3>
-                  <p className="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed">
+                  <p className="text-[11px] sm:text-xs text-slate-600 mt-1.5 sm:mt-2 line-clamp-2 leading-relaxed">
                     {product.shortDescription}
                   </p>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 space-y-1.5">
-                  <div className="text-[11px] font-semibold text-slate-700">Sample Key Coverage:</div>
+                <div className="pt-2 border-t border-slate-100 space-y-1">
+                  <div className="text-[10px] sm:text-[11px] font-semibold text-slate-700">{t('home.sampleCoverage')}</div>
                   {product.benefits.slice(0, 2).map((benefit, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs text-slate-600">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                    <div key={i} className="flex items-start gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-slate-600">
+                      <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-600 shrink-0 mt-0.5" />
                       <span className="line-clamp-1">{benefit}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="pt-5 mt-4 border-t border-slate-100 flex items-center justify-between">
-                <div className="text-xs">
-                  <span className="text-slate-500">From </span>
+              <div className="pt-3.5 sm:pt-5 mt-3 sm:mt-4 border-t border-slate-100 flex items-center justify-between">
+                <div className="text-[11px] sm:text-xs">
+                  <span className="text-slate-500">{t('home.from')} </span>
                   <span className="font-mono font-semibold text-slate-900 tabular-nums">
                     {product.quotationConfiguration.standardMinimumPremiumETB.toLocaleString()} ETB
                   </span>
@@ -709,7 +628,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                   onClick={() => navigate(`/insurance/${product.slug}`)}
                   className="text-xs font-semibold text-[#12366e] hover:text-[#184486] flex items-center gap-1 group-hover:translate-x-0.5 transition-transform cursor-pointer"
                 >
-                  <span>Details</span>
+                  <span>{t('home.details')}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -719,24 +638,27 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
       </section>
 
       {/* SECTION 3: CUSTOMER TESTIMONIAL CAROUSEL (POLICYHOLDER SOCIAL PROOF & TRUST - 16 STORIES, 4 VISIBLE AT ONCE) */}
-      <section className="bg-slate-100/80 border-y border-slate-200/80 py-24 sm:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <section className="bg-slate-100/80 border-y border-slate-200/80 py-12 sm:py-24">
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
           {/* Header & Controls */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="max-w-2xl space-y-2">
-              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
-                Trusted by Ethiopia's Premier Enterprises & Families
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
+            <div className="max-w-2xl space-y-1.5 sm:space-y-2">
+              <span className="text-[11px] sm:text-xs font-semibold text-[#12366e] uppercase tracking-wider block">
+                {t('home.testimonialsEyebrow')}
+              </span>
+              <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight">
+                {t('home.testimonialsTitle')}
               </h2>
             </div>
 
             {/* Page & Navigation Controls */}
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
               <button
                 onClick={handlePrevTestimonial}
                 aria-label="Previous testimonial page"
-                className="w-10 h-10 rounded-xl bg-white border border-slate-300 hover:border-[#12366e] text-slate-700 hover:text-[#12366e] flex items-center justify-center transition-all shadow-sm hover:shadow cursor-pointer"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white border border-slate-300 hover:border-[#12366e] text-slate-700 hover:text-[#12366e] flex items-center justify-center transition-all shadow-sm hover:shadow cursor-pointer"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <div className="text-xs font-mono text-slate-600 font-semibold px-2">
                 <span>Page {currentTestimonialPage + 1}</span>
@@ -746,9 +668,9 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
               <button
                 onClick={handleNextTestimonial}
                 aria-label="Next testimonial page"
-                className="w-10 h-10 rounded-xl bg-white border border-slate-300 hover:border-[#12366e] text-slate-700 hover:text-[#12366e] flex items-center justify-center transition-all shadow-sm hover:shadow cursor-pointer"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white border border-slate-300 hover:border-[#12366e] text-slate-700 hover:text-[#12366e] flex items-center justify-center transition-all shadow-sm hover:shadow cursor-pointer"
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
@@ -757,13 +679,13 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
           <div 
             onMouseEnter={() => setIsTestimonialPaused(true)}
             onMouseLeave={() => setIsTestimonialPaused(false)}
-            className="space-y-6"
+            className="space-y-4 sm:space-y-6"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
               {visibleTestimonials.map((testimonial) => (
                 <div
                   key={testimonial.id}
-                  className="bg-white border border-slate-200 hover:border-[#12366e]/40 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group h-full relative"
+                  className="bg-white border border-slate-200 hover:border-[#12366e]/40 rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group h-full relative"
                 >
                   <div className="space-y-3.5">
                     {/* Author header */}
@@ -850,31 +772,31 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
           </div>
 
           {/* Social Proof Stats Bar */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-4 text-center">
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-[#12366e]">30+</div>
-              <div className="text-xs text-slate-600 font-medium mt-1">Years Continuous Solvency</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 pt-2 sm:pt-4 text-center">
+            <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-sm">
+              <div className="text-xl sm:text-3xl font-bold font-mono text-[#12366e]">30+</div>
+              <div className="text-[11px] sm:text-xs text-slate-600 font-medium mt-1">{t('home.stat1')}</div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-[#12366e]">100%</div>
-              <div className="text-xs text-slate-600 font-medium mt-1">Verifiable SHA-256 Policies</div>
+            <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-sm">
+              <div className="text-xl sm:text-3xl font-bold font-mono text-[#12366e]">100%</div>
+              <div className="text-[11px] sm:text-xs text-slate-600 font-medium mt-1">{t('home.stat2')}</div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-[#12366e]">32+</div>
-              <div className="text-xs text-slate-600 font-medium mt-1">Nationwide Branch Offices</div>
+            <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-sm">
+              <div className="text-xl sm:text-3xl font-bold font-mono text-[#12366e]">32+</div>
+              <div className="text-[11px] sm:text-xs text-slate-600 font-medium mt-1">{t('home.stat3')}</div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-[#12366e]">98.6%</div>
-              <div className="text-xs text-slate-600 font-medium mt-1">Claims Settlement Rate</div>
+            <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-sm">
+              <div className="text-xl sm:text-3xl font-bold font-mono text-[#12366e]">98.6%</div>
+              <div className="text-[11px] sm:text-xs text-slate-600 font-medium mt-1">{t('home.stat4')}</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* SECTION 4: EDITORIAL STORYTELLING SECTION (LOOM & ANTIGRAVITY INSPIRED) */}
-      <section className="bg-white border-b border-slate-200/80 py-28 lg:py-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-20 items-center">
+      <section className="bg-white border-b border-slate-200/80 py-12 sm:py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-16 lg:gap-20 items-center">
             {/* Left Image Asset */}
             <div className="relative rounded-2xl overflow-hidden shadow-xl border border-slate-200/80 aspect-[4/3]">
               <img
@@ -884,38 +806,38 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                 referrerPolicy="no-referrer"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="absolute bottom-7 left-7 right-7 text-white">
-                <span className="text-xs uppercase tracking-wider font-semibold text-[#c59b27]">Family Security</span>
-                <h3 className="text-xl font-bold text-white mt-1">Protecting what matters most for over three decades</h3>
+              <div className="absolute bottom-4 left-4 right-4 sm:bottom-7 sm:left-7 sm:right-7 text-white">
+                <span className="text-[11px] sm:text-xs uppercase tracking-wider font-semibold text-[#c59b27]">{t('home.familyBadge')}</span>
+                <h3 className="text-base sm:text-xl font-bold text-white mt-1">{t('home.familyCaption')}</h3>
               </div>
             </div>
 
             {/* Right Editorial Copy */}
-            <div className="space-y-8">
-              <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight text-balance leading-tight">
-                Bridging Ethiopian Insurance Heritage with Modern Digital Access
+            <div className="space-y-5 sm:space-y-8">
+              <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight text-balance leading-tight">
+                {t('home.editorialTitle')}
               </h2>
-              <p className="text-base text-slate-600 leading-relaxed">
-                As one of Ethiopia's founding private insurance institutions, Africa Insurance Company combines deep actuarial prudence with digital ease. Our e-policy platform ensures every customer—whether self-registering online or assisted by an authorized direct-sales operator in Addis Ababa or the regions—receives immediate, verifiable coverage.
+              <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+                {t('home.editorialDesc')}
               </p>
 
-              <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-200/80">
+              <div className="grid grid-cols-2 gap-4 sm:gap-8 pt-4 sm:pt-6 border-t border-slate-200/80">
                 <div>
-                  <div className="text-3xl font-bold font-mono text-[#12366e] tabular-nums">30+ Years</div>
-                  <div className="text-xs text-slate-500 mt-1">Continuous financial solvency & trust in Ethiopia</div>
+                  <div className="text-2xl sm:text-3xl font-bold font-mono text-[#12366e] tabular-nums">30+ Years</div>
+                  <div className="text-[11px] sm:text-xs text-slate-500 mt-1">{t('home.stat1')}</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold font-mono text-[#12366e] tabular-nums">ETB 603M+</div>
-                  <div className="text-xs text-slate-500 mt-1">Paid-up capital scaling to ETB 2 billion</div>
+                  <div className="text-2xl sm:text-3xl font-bold font-mono text-[#12366e] tabular-nums">ETB 603M+</div>
+                  <div className="text-[11px] sm:text-xs text-slate-500 mt-1">Paid-up capital scaling to ETB 2 billion</div>
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-1 sm:pt-2">
                 <button
                   onClick={() => navigate('/about')}
                   className="text-xs font-semibold text-[#12366e] hover:text-[#184486] flex items-center gap-2 group cursor-pointer"
                 >
-                  <span>Read our corporate profile</span>
+                  <span>{t('home.readProfile')}</span>
                   <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                 </button>
               </div>
@@ -925,29 +847,29 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
       </section>
 
       {/* SECTION 5: COMMERCIAL FLEET & LOGISTICS SPOTLIGHT */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-28">
-        <div className="bg-gradient-to-br from-[#0e2a58] via-[#12366e] to-[#184486] text-white rounded-3xl p-8 sm:p-12 lg:p-16 relative overflow-hidden shadow-xl">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div className="space-y-6">
-              <span className="text-xs font-semibold text-[#f0cb5a] uppercase tracking-wider">Commercial Fleets & Heavy Goods</span>
-              <h3 className="text-3xl sm:text-4xl font-bold text-white tracking-tight leading-tight">
-                Transit and Motor Fleet Underwriting Built for National Logistics
+      <section className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-12 sm:py-24">
+        <div className="bg-gradient-to-br from-[#0e2a58] via-[#12366e] to-[#184486] text-white rounded-2xl sm:rounded-3xl p-5 sm:p-12 lg:p-16 relative overflow-hidden shadow-xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-12 lg:gap-16 items-center">
+            <div className="space-y-4 sm:space-y-6">
+              <span className="text-[11px] sm:text-xs font-semibold text-[#f0cb5a] uppercase tracking-wider">{t('home.fleetEyebrow')}</span>
+              <h3 className="text-2xl sm:text-4xl font-bold text-white tracking-tight leading-tight">
+                {t('home.fleetTitle')}
               </h3>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                From cross-country freight along the Djibouti corridor to industrial fleet logistics across the Rift Valley, AIC provides customized corporate risk assessments and rapid claims adjustment.
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                {t('home.fleetDesc')}
               </p>
-              <div className="pt-2">
+              <div className="pt-1 sm:pt-2">
                 <button
                   onClick={() => navigate('/insurance/commercial-fleet-motor-insurance')}
-                  className="bg-white hover:bg-slate-100 text-slate-900 text-xs font-semibold px-6 py-3 rounded-xl transition-all shadow-md inline-flex items-center gap-2 group cursor-pointer"
+                  className="bg-white hover:bg-slate-100 text-slate-900 text-xs font-semibold px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl transition-all shadow-md inline-flex items-center gap-2 group cursor-pointer"
                 >
-                  <span>Inspect Motor Fleet Schedule</span>
+                  <span>{t('home.fleetBtn')}</span>
                   <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                 </button>
               </div>
             </div>
 
-            <div className="rounded-2xl overflow-hidden aspect-[4/3] border border-white/10 shadow-lg">
+            <div className="rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/3] border border-white/10 shadow-lg">
               <img
                 src="/assets/aic_fleet_logistics_1793894083707.jpg"
                 alt="Ethiopian Commercial Logistics Fleet"

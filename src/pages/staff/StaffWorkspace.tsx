@@ -242,7 +242,25 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
       </aside>
 
       {/* Main Underwriting View */}
-      <main className="flex-1 p-6 sm:p-10 max-w-6xl mx-auto space-y-8 overflow-y-auto">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-6 sm:space-y-8 overflow-y-auto">
+        <div className="md:hidden -mx-4 px-4 pb-3 border-b border-slate-200 flex items-center gap-2 overflow-x-auto">
+          {[
+            { id: 'queue', label: 'Review Queue' },
+            { id: 'issued', label: 'Issued Policies' },
+            { id: 'verifications', label: 'Verifications' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => { setActiveTab(tab.id as any); setSelectedApp(null); }}
+              className={`shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                activeTab === tab.id ? 'bg-[#12366e] text-white' : 'bg-white border border-slate-200 text-slate-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-[#12366e] uppercase tracking-wider">
@@ -250,7 +268,7 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
               <span aria-hidden="true">·</span>
               <span>Maker-Checker Governance</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">
+            <h1 className="text-xl sm:text-3xl font-bold text-slate-900 mt-1">
               Application Review & Policy Issuance
             </h1>
           </div>

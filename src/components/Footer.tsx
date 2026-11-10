@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { store } from '../services/store';
+import { useLanguage } from '../i18n/LanguageContext';
 import { 
   Phone, 
   Mail, 
@@ -17,6 +18,7 @@ interface FooterProps {
 }
 
 export const Footer: React.FC<FooterProps> = ({ navigate }) => {
+  const { t } = useLanguage();
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterName, setNewsletterName] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -57,16 +59,16 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
             <div className="lg:col-span-5 space-y-1.5">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-[#f0cb5a] uppercase tracking-wider">
-                  Stay Informed
+                  {t('footer.stayInformed')}
                 </span>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#f0cb5a]" />
-                <span className="text-xs text-slate-300">AIC Corporate Gazette</span>
+                <span className="text-xs text-slate-300">{t('footer.gazette')}</span>
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                Subscribe to Official Company Updates & News
+                {t('footer.newsletterTitle')}
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Receive authoritative announcements, underwriting directives, regulatory milestones, and quarterly insurance insights directly in your inbox.
+                {t('footer.newsletterDesc')}
               </p>
             </div>
 
@@ -93,7 +95,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
                     disabled={isSubmitting}
                     className="bg-[#f0cb5a] hover:bg-[#e0bb4a] text-[#0c2550] px-6 py-2.5 rounded-xl font-bold text-xs tracking-tight transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg shrink-0 cursor-pointer disabled:opacity-50"
                   >
-                    <span>{isSubmitting ? 'Subscribing...' : 'Subscribe'}</span>
+                    <span>{isSubmitting ? t('footer.subscribing') : t('footer.subscribe')}</span>
                     <Send className="w-3.5 h-3.5 text-[#0c2550]" />
                   </button>
                 </div>
@@ -134,7 +136,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
             {/* Social Media Section */}
             <div className="pt-2 space-y-2">
               <span className="text-[11px] font-bold text-white uppercase tracking-wider block">
-                Connect with AIC
+                {t('footer.connect')}
               </span>
               <div className="flex items-center gap-2.5">
                 {/* LinkedIn */}
@@ -184,41 +186,41 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
 
           {/* Col 2: Public Portals */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Public Services</h4>
+            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">{t('footer.publicServices')}</h4>
             <ul className="space-y-2 text-xs">
               <li>
                 <button onClick={() => navigate('/about')} className="hover:text-white transition-colors cursor-pointer text-left">
-                  About Us (Company Heritage)
+                  {t('nav.about')}
                 </button>
               </li>
               <li>
                 <button onClick={() => navigate('/insurance')} className="hover:text-white transition-colors cursor-pointer text-left">
-                  Insurance Products & Services
+                  {t('nav.products')}
                 </button>
               </li>
               <li>
                 <button onClick={() => navigate('/claims')} className="hover:text-white transition-colors cursor-pointer text-left">
-                  Claims Policy & Notification
+                  {t('nav.claims')}
                 </button>
               </li>
               <li>
                 <button onClick={() => navigate('/media')} className="hover:text-white transition-colors cursor-pointer text-left">
-                  News & Corporate Announcements
+                  {t('nav.media')}
                 </button>
               </li>
               <li>
                 <button onClick={() => navigate('/verify-policy')} className="hover:text-white transition-colors cursor-pointer text-left">
-                  Public Policy Verification
+                  {t('nav.verify')}
                 </button>
               </li>
               <li>
                 <button onClick={() => navigate('/branches')} className="hover:text-white transition-colors cursor-pointer text-left">
-                  Branch Directory (Addis Ababa & Regions)
+                  {t('nav.branches')}
                 </button>
               </li>
               <li>
                 <button onClick={() => navigate('/contact')} className="hover:text-white transition-colors cursor-pointer text-left">
-                  Contact & Head Office
+                  {t('nav.contact')}
                 </button>
               </li>
               <li>
@@ -231,7 +233,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
 
           {/* Col 3: Leadership & Governance */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Corporate Leadership</h4>
+            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">{t('footer.leadership')}</h4>
             <ul className="space-y-2 text-xs">
               <li>
                 <button onClick={() => navigate('/board-of-directors')} className="hover:text-white text-[#f0cb5a] hover:underline transition-colors cursor-pointer text-left font-medium">
@@ -271,7 +273,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
 
           {/* Col 4: Corporate Headquarters */}
           <div className="space-y-3 text-xs">
-            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Headquarters</h4>
+            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">{t('footer.headquarters')}</h4>
             <div className="flex items-start gap-2.5 text-slate-400">
               <MapPin className="w-4 h-4 text-[#c59b27] shrink-0 mt-0.5" />
               <span>Africa Avenue (Bole Road), Head Office Building, P.O. Box: 12941, Addis Ababa, Ethiopia</span>
@@ -286,7 +288,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
             </div>
             <div className="pt-2 border-t border-slate-700/50 flex items-center gap-1.5 text-[11px] text-[#f0cb5a]">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>National Bank of Ethiopia Licensed Insurer</span>
+              <span>{t('footer.licensed')}</span>
             </div>
           </div>
         </div>

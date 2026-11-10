@@ -8,15 +8,19 @@ export type UserRole = 'customer' | 'operator' | 'underwriter' | 'staff' | 'fina
 export interface UserAccount {
   uid: string;
   accountType: UserRole;
+  displayName?: string;
   firstName: string;
   lastName: string;
   email: string;
   emailVerified: boolean;
+  photoURL?: string;
+  authProviders?: string[];
   phone: string;
   phoneVerified: boolean;
   branchId?: string;
   operatorId?: string;
   accountStatus: 'active' | 'suspended' | 'pending_verification' | 'deactivated';
+  onboardingStatus?: 'incomplete' | 'complete';
   registrationChannel: 'self_service' | 'assisted_operator' | 'branch_walkin';
   createdAt: string;
   updatedAt: string;
@@ -138,8 +142,10 @@ export interface InsuranceProduct {
   productCategory: 'motor' | 'property' | 'liability' | 'marine' | 'engineering' | 'personal' | 'business';
   shortDescription: string;
   fullDescription: string;
+  heroImage?: string;
   disclaimer: string;
   isDemonstration?: boolean;
+  benefits: string[];
   coverageSections: {
     title: string;
     description: string;

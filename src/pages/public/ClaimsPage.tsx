@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { 
   Shield, 
   FileText, 
@@ -22,6 +23,7 @@ interface ClaimsPageProps {
 }
 
 export const ClaimsPage: React.FC<ClaimsPageProps> = ({ navigate }) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'procedure' | 'notify' | 'requirements'>('procedure');
   const [selectedClass, setSelectedClass] = useState<string>('motor');
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -100,17 +102,17 @@ export const ClaimsPage: React.FC<ClaimsPageProps> = ({ navigate }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+    <div className="min-h-screen bg-slate-50 py-6 sm:py-12">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 space-y-6 sm:space-y-10">
         {/* Header */}
-        <div className="max-w-3xl space-y-3">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#12366e] uppercase tracking-wider">
-            <span>Claims Management Department</span>
+        <div className="max-w-3xl space-y-2 sm:space-y-3">
+          <div className="flex items-center gap-2 text-[11px] sm:text-xs font-semibold text-[#12366e] uppercase tracking-wider">
+            <span>{t('nav.claims')}</span>
             <span aria-hidden="true">·</span>
             <span>Committed to Fair & Prompt Settlement</span>
           </div>
-          <h1 className="text-3xl sm:text-5xl font-bold text-[#12366e] tracking-tight leading-tight">
-            Authoritative Claims Service & Settlement
+          <h1 className="text-2xl sm:text-5xl font-bold text-[#12366e] tracking-tight leading-tight">
+            {t('pages.claimsTitle')}
           </h1>
           <p className="text-base text-slate-600 leading-relaxed">
             At Africa Insurance Company S.C., our core guiding policy is to handle all claim notifications fairly, consistently, and without delay. Managed by experienced claim professionals under the direction of our Claims Management Department, we ensure immediate surveyor dispatch and prompt financial indemnification.

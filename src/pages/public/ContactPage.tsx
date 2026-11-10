@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { Phone, Mail, MapPin, Clock, Send, CheckCircle2, ShieldAlert, ExternalLink, Navigation } from 'lucide-react';
 
 export const ContactPage: React.FC = () => {
+  const { t } = useLanguage();
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -17,16 +19,16 @@ export const ContactPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-        <div className="max-w-3xl space-y-3">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#12366e] uppercase tracking-wider">
-            <span>Customer Assistance</span>
+    <div className="min-h-screen bg-slate-50 py-6 sm:py-12">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 space-y-6 sm:space-y-10">
+        <div className="max-w-3xl space-y-2 sm:space-y-3">
+          <div className="flex items-center gap-2 text-[11px] sm:text-xs font-semibold text-[#12366e] uppercase tracking-wider">
+            <span>{t('nav.contact')}</span>
             <span aria-hidden="true">·</span>
             <span>Emergency Claims Support</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-[#12366e] tracking-tight">
-            Contact Africa Insurance Company
+          <h1 className="text-2xl sm:text-4xl font-bold text-[#12366e] tracking-tight">
+            {t('pages.contactTitle')}
           </h1>
           <p className="text-sm text-slate-600 leading-relaxed">
             Our corporate headquarters and regional branches are ready to assist with policy issuance, claims notification, policy verification, and operator partnerships.

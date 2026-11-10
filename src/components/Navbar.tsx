@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { store } from '../services/store';
-import { Shield, ChevronDown, CheckCircle2, UserCheck, Menu, X } from 'lucide-react';
+import { signOutUser, getDestinationForAccount } from '../services/authService';
+import { useLanguage } from '../i18n/LanguageContext';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { Shield, ChevronDown, Menu, X, LogOut, LayoutDashboard, User } from 'lucide-react';
 
 interface NavbarProps {
   currentRoute: string;
@@ -9,7 +12,9 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
   const currentUser = store.getCurrentUser();
+  const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [logoClicks, setLogoClicks] = useState(0);
   const [lastClickTime, setLastClickTime] = useState(0);
 
@@ -33,7 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-18 flex items-center justify-between gap-4 sm:gap-8">
         {/* Zone 1: Brand Wordmark & Official AIC Logo with Secret 5-Click Admin Trigger */}
         <button
           onClick={handleLogoClick}
@@ -43,7 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
           <img
             src="/assets/aic_logo.jpg"
             alt="Africa Insurance Company S.C."
-            className="h-12 w-auto object-contain transition-transform group-hover:scale-[1.02]"
+            className="h-9 sm:h-12 w-auto object-contain transition-transform group-hover:scale-[1.02]"
             onError={(e) => {
               const target = e.currentTarget;
               target.style.display = 'none';
@@ -52,20 +57,20 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
             }}
           />
           <div className="logo-fallback hidden flex items-center gap-2">
-            <span className="text-xl font-black text-[#12366e] tracking-tight">AFRICA INSURANCE</span>
+            <span className="text-lg sm:text-xl font-black text-[#12366e] tracking-tight">AFRICA INSURANCE</span>
             <span className="text-xs font-bold text-[#c59b27] px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200">S.C.</span>
           </div>
         </button>
 
         {/* Zone 2: Navigation Links matching africainsurancesc.com */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+        <nav className="hidden md:flex items-center gap-5 text-sm font-medium text-slate-600">
           <button
             onClick={() => navigate('/about')}
             className={`whitespace-nowrap transition-colors hover:text-[#12366e] py-1 ${
               currentRoute === '/about' ? 'text-[#12366e] font-semibold border-b-2 border-[#c59b27]' : ''
             }`}
           >
-            About Us
+            {t('nav.about')}
           </button>
           <button
             onClick={() => navigate('/insurance')}
@@ -73,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
               currentRoute.startsWith('/insurance') ? 'text-[#12366e] font-semibold border-b-2 border-[#c59b27]' : ''
             }`}
           >
-            Services & Products
+            {t('nav.products')}
           </button>
           <button
             onClick={() => navigate('/claims')}
@@ -81,7 +86,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
               currentRoute === '/claims' ? 'text-[#12366e] font-semibold border-b-2 border-[#c59b27]' : ''
             }`}
           >
-            Claims
+            {t('nav.claims')}
           </button>
           <button
             onClick={() => navigate('/media')}
@@ -89,7 +94,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
               currentRoute === '/media' ? 'text-[#12366e] font-semibold border-b-2 border-[#c59b27]' : ''
             }`}
           >
-            Media & Reports
+            {t('nav.media')}
           </button>
           <button
             onClick={() => navigate('/verify-policy')}
@@ -98,7 +103,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
             }`}
           >
             <Shield className="w-3.5 h-3.5 text-[#c59b27]" />
-            <span>Verify Policy</span>
+            <span>{t('nav.verify')}</span>
           </button>
           <button
             onClick={() => navigate('/branches')}
@@ -106,7 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
               currentRoute === '/branches' ? 'text-[#12366e] font-semibold border-b-2 border-[#c59b27]' : ''
             }`}
           >
-            Branches
+            {t('nav.branches')}
           </button>
           <button
             onClick={() => navigate('/contact')}
@@ -114,12 +119,91 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
               currentRoute === '/contact' ? 'text-[#12366e] font-semibold border-b-2 border-[#c59b27]' : ''
             }`}
           >
-            Contact
+            {t('nav.contact')}
           </button>
         </nav>
 
-        {/* Mobile menu trigger */}
-        <div className="md:hidden flex items-center shrink-0">
+        {/* Zone 3: Language Switcher & Account Menu / Sign In */}
+        <div className="hidden md:flex items-center gap-2.5 shrink-0 relative">
+          <LanguageSwitcher variant="desktop" />
+          {currentUser ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setAccountMenuOpen(!accountMenuOpen)}
+                className="flex items-center gap-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 transition-colors cursor-pointer"
+              >
+                {currentUser.photoURL ? (
+                  <img
+                    src={currentUser.photoURL}
+                    alt={currentUser.displayName || currentUser.firstName}
+                    className="w-6 h-6 rounded-full object-cover border border-slate-300"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="w-6 h-6 rounded-full bg-[#12366e] text-white flex items-center justify-center text-[11px] font-bold">
+                    {(currentUser.firstName?.[0] || currentUser.email?.[0] || 'A').toUpperCase()}
+                  </span>
+                )}
+                <span className="max-w-[120px] truncate">
+                  {currentUser.displayName || `${currentUser.firstName} ${currentUser.lastName}`.trim() || currentUser.email}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+              </button>
+
+              {accountMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg py-2 z-50 text-xs">
+                  <div className="px-4 py-2 border-b border-slate-100">
+                    <div className="font-bold text-slate-900 truncate">
+                      {currentUser.displayName || `${currentUser.firstName} ${currentUser.lastName}`.trim()}
+                    </div>
+                    <div className="text-[11px] text-slate-500 truncate">{currentUser.email}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountMenuOpen(false);
+                      navigate(getDestinationForAccount(currentUser));
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-slate-700 hover:bg-slate-50 hover:text-[#12366e] font-semibold flex items-center gap-2 cursor-pointer"
+                  >
+                    <LayoutDashboard className="w-3.5 h-3.5 text-[#12366e]" />
+                    <span>
+                      {currentUser.onboardingStatus === 'incomplete' && currentUser.accountType === 'customer'
+                        ? t('nav.completeSetup')
+                        : t('nav.dashboard')}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setAccountMenuOpen(false);
+                      await signOutUser();
+                      navigate('/');
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-rose-700 hover:bg-rose-50 font-semibold flex items-center gap-2 border-t border-slate-100 cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>{t('nav.signout')}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="bg-[#12366e] hover:bg-[#0e2a58] text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+            >
+              <User className="w-3.5 h-3.5 text-[#c59b27]" />
+              <span>{t('nav.signin')}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Mobile quick language & menu trigger */}
+        <div className="md:hidden flex items-center gap-2 shrink-0">
+          <LanguageSwitcher variant="compact" />
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 text-slate-700 hover:text-slate-900 focus:outline-none cursor-pointer"
@@ -133,48 +217,88 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
       {/* Mobile drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-2 text-sm font-medium">
+          <div className="pb-2 border-b border-slate-100">
+            <LanguageSwitcher variant="pills" />
+          </div>
+
           <button
             onClick={() => { navigate('/about'); setMobileMenuOpen(false); }}
             className="block w-full text-left py-2 text-slate-700 hover:text-[#12366e]"
           >
-            About Us
+            {t('nav.about')}
           </button>
           <button
             onClick={() => { navigate('/insurance'); setMobileMenuOpen(false); }}
             className="block w-full text-left py-2 text-slate-700 hover:text-[#12366e]"
           >
-            Services & Products
+            {t('nav.products')}
           </button>
           <button
             onClick={() => { navigate('/claims'); setMobileMenuOpen(false); }}
             className="block w-full text-left py-2 text-slate-700 hover:text-[#12366e]"
           >
-            Claims Service & Notification
+            {t('nav.claims')}
           </button>
           <button
             onClick={() => { navigate('/media'); setMobileMenuOpen(false); }}
             className="block w-full text-left py-2 text-slate-700 hover:text-[#12366e]"
           >
-            Media & Annual Reports
+            {t('nav.media')}
           </button>
           <button
             onClick={() => { navigate('/verify-policy'); setMobileMenuOpen(false); }}
             className="block w-full text-left py-2 text-slate-700 hover:text-[#12366e]"
           >
-            Verify Policy Code
+            {t('nav.verify')}
           </button>
           <button
             onClick={() => { navigate('/branches'); setMobileMenuOpen(false); }}
             className="block w-full text-left py-2 text-slate-700 hover:text-[#12366e]"
           >
-            Branch Directory
+            {t('nav.branches')}
           </button>
           <button
             onClick={() => { navigate('/contact'); setMobileMenuOpen(false); }}
             className="block w-full text-left py-2 text-slate-700 hover:text-[#12366e]"
           >
-            Contact
+            {t('nav.contact')}
           </button>
+
+          <div className="pt-3 border-t border-slate-100">
+            {currentUser ? (
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    navigate(getDestinationForAccount(currentUser));
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full bg-[#12366e] text-white py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5 text-[#c59b27]" />
+                  <span>{t('nav.dashboard')}</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    await signOutUser();
+                    setMobileMenuOpen(false);
+                    navigate('/');
+                  }}
+                  className="w-full border border-slate-200 text-rose-700 py-2 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>{t('nav.signout')}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { navigate('/login'); setMobileMenuOpen(false); }}
+                className="w-full bg-[#12366e] text-white py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2"
+              >
+                <User className="w-3.5 h-3.5 text-[#c59b27]" />
+                <span>{t('nav.signin')}</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
     </header>

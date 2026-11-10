@@ -195,24 +195,6 @@ class AICStore {
         }
       ]));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
-      // Default to administrator account for instant developer inspection
-      this.setCurrentUser({
-        uid: 'usr-admin-01',
-        accountType: 'admin',
-        firstName: 'Eleni',
-        lastName: 'Hailu',
-        email: 'eleni.admin@africainsurance.et',
-        emailVerified: true,
-        phone: '+251 91 100 0001',
-        phoneVerified: true,
-        branchId: 'BR-ADDIS-HQ',
-        accountStatus: 'active',
-        registrationChannel: 'branch_walkin',
-        createdAt: '2025-10-01T08:00:00Z',
-        updatedAt: '2026-01-01T08:00:00Z'
-      });
-    }
   }
 
   public subscribe(listener: () => void): () => void {

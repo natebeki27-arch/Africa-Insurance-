@@ -1,3 +1,5 @@
+import React from 'react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { 
   Shield, 
   Award, 
@@ -16,18 +18,19 @@ interface AboutPageProps {
 }
 
 export const AboutPage: React.FC<AboutPageProps> = ({ navigate }) => {
+  const { t } = useLanguage();
   return (
-    <div className="min-h-screen bg-slate-50 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+    <div className="min-h-screen bg-slate-50 py-6 sm:py-12">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 space-y-8 sm:space-y-12">
         {/* Header */}
-        <div className="max-w-3xl space-y-4">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#12366e] uppercase tracking-wider">
-            <span>Corporate Heritage</span>
+        <div className="max-w-3xl space-y-3 sm:space-y-4">
+          <div className="flex items-center gap-2 text-[11px] sm:text-xs font-semibold text-[#12366e] uppercase tracking-wider">
+            <span>{t('nav.about')}</span>
             <span aria-hidden="true">·</span>
             <span>Est. December 8, 1994 · Addis Ababa, Ethiopia</span>
           </div>
-          <h1 className="text-3xl sm:text-5xl font-bold text-[#12366e] tracking-tight leading-tight">
-            Committed to Excellence and Quality Services
+          <h1 className="text-2xl sm:text-5xl font-bold text-[#12366e] tracking-tight leading-tight">
+            {t('home.whyTitle')}
           </h1>
           <p className="text-sm text-[#c59b27] font-semibold italic">
             የላቀና ጥራት ያለው አገልግሎት መስጠት ቃል ኪዳናችን ነው !

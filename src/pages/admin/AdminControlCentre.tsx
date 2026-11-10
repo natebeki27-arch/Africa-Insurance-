@@ -310,11 +310,11 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
       sections: [
         {
           heading: 'Operative Clause & Schedule',
-          text: 'This document constitutes an official policy record of Africa Insurance Company (S.C.) subject to Ethiopian maritime, commercial, and insurance codes.'
+          body: 'This document constitutes an official policy record of Africa Insurance Company (S.C.) subject to Ethiopian maritime, commercial, and insurance codes.'
         },
         {
           heading: 'Claims Notice & Settlement Protocol',
-          text: 'Notice of loss must be reported promptly within statutory timelines to AIC Claims Department or any branch office across Ethiopia.'
+          body: 'Notice of loss must be reported promptly within statutory timelines to AIC Claims Department or any branch office across Ethiopia.'
         }
       ]
     });
@@ -344,7 +344,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
       sections: editingDoc.sections && editingDoc.sections.length > 0 ? editingDoc.sections : [
         {
           heading: 'Operative Clause & Schedule',
-          text: 'This document constitutes an official policy record of Africa Insurance Company (S.C.) subject to Ethiopian maritime, commercial, and insurance codes.'
+          body: 'This document constitutes an official policy record of Africa Insurance Company (S.C.) subject to Ethiopian maritime, commercial, and insurance codes.'
         }
       ]
     };
@@ -385,7 +385,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
       `--------------------------------------------------------------------------------`,
       ...(doc.sections || []).flatMap((sec, idx) => [
         `\n[SECTION ${idx + 1}] ${sec.heading.toUpperCase()}`,
-        sec.text,
+        sec.body,
         `--------------------------------------------------------------------------------`
       ]),
       ``,
@@ -609,7 +609,41 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
       </aside>
 
       {/* Main Admin Viewport */}
-      <main className="flex-1 p-6 sm:p-10 max-w-6xl mx-auto space-y-8 overflow-y-auto">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-6 sm:space-y-8 overflow-y-auto">
+        {/* Mobile Admin Navigation Bar */}
+        <div className="md:hidden -mx-4 px-4 pb-3 border-b border-slate-200 flex items-center gap-2 overflow-x-auto">
+          {[
+            { id: 'overview', label: 'Metrics' },
+            { id: 'content', label: 'CMS' },
+            { id: 'documents', label: `Docs (${adminDocs.length})` },
+            { id: 'subscribers', label: `Subscribers (${subscribers.length})` },
+            { id: 'products', label: `Products (${products.length})` },
+            { id: 'customers', label: `Customers (${customers.length})` },
+            { id: 'operators', label: `Operators (${operators.length})` },
+            { id: 'policies', label: 'E-Policies' },
+            { id: 'payments', label: 'Chapa' },
+            { id: 'emails', label: 'Emails' },
+            { id: 'audit', label: 'Audit' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                setIsEditingProduct(false);
+                setIsEditingDoc(false);
+              }}
+              className={`shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-[#12366e] text-white'
+                  : 'bg-white border border-slate-200 text-slate-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
           <div>
@@ -618,7 +652,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
               <span aria-hidden="true">·</span>
               <span>Headquarters Directorate</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">
+            <h1 className="text-xl sm:text-3xl font-bold text-slate-900 mt-1">
               Africa Insurance Company Operations Centre
             </h1>
           </div>
@@ -1253,17 +1287,17 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                   />
                 </div>
 
-                {/* Statutory Pilot Disclaimer Input */}
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1">
-                  <label className="block font-semibold text-amber-900">Demonstration Disclaimer Label</label>
+                {/* Official Regulatory & Policy Disclaimer Input */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1">
+                  <label className="block font-semibold text-[#12366e]">Official Regulatory & Policy Disclaimer</label>
                   <input
                     type="text"
                     required
-                    value={editingProduct.disclaimer || 'DEMONSTRATION PRODUCT — NOT AN APPROVED AIC INSURANCE OFFER'}
+                    value={editingProduct.disclaimer || 'Official Africa Insurance Company (S.C.) Approved Policy Schedule · Regulated by the National Bank of Ethiopia'}
                     onChange={(e) => setEditingProduct({ ...editingProduct, disclaimer: e.target.value })}
-                    className="w-full bg-white border border-amber-300 rounded px-3 py-2 text-amber-950 font-semibold"
+                    className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-slate-900 font-semibold"
                   />
-                  <span className="text-[10px] text-amber-800">Must remain explicit to prevent public misrepresentation.</span>
+                  <span className="text-[10px] text-slate-600">Displayed on policy schedules and underwriting disclosures.</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1408,13 +1442,13 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
 
         {/* TAB 3: CUSTOMER CRM 360 */}
         {activeTab === 'customers' && (
-          <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-6">
+          <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider">
-                  Customer Database & 360 CRM
+                  Customer Database, Onboarding &amp; KYC Control
                 </h3>
-                <p className="text-xs text-slate-500">Search customer profiles, linked policies, and operator onboarding attribution.</p>
+                <p className="text-xs text-slate-500">Search customer profiles, verify KYC status, and manage account access.</p>
               </div>
 
               <div className="relative w-full sm:w-64">
@@ -1429,16 +1463,17 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
               </div>
             </div>
 
-            <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-              <table className="w-full text-left">
+            <div className="border border-slate-200 rounded-xl overflow-x-auto text-xs">
+              <table className="w-full text-left min-w-[700px]">
                 <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                   <tr>
                     <th className="p-3">Customer ID</th>
                     <th className="p-3">Full Name</th>
                     <th className="p-3">Phone</th>
-                    <th className="p-3">ID Masked</th>
+                    <th className="p-3">KYC Status</th>
+                    <th className="p-3">Account Status</th>
                     <th className="p-3">Channel</th>
-                    <th className="p-3">Attributed Operator</th>
+                    <th className="p-3 text-right">Admin Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -1447,9 +1482,62 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                       <td className="p-3 font-mono font-semibold text-slate-900">{c.customerNumber}</td>
                       <td className="p-3 font-semibold text-slate-900">{c.personalInformation.fullName}</td>
                       <td className="p-3 font-mono text-slate-600">{c.contactInformation.primaryPhone}</td>
-                      <td className="p-3 font-mono text-slate-500">{c.personalInformation.idNumberMasked}</td>
+                      <td className="p-3">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
+                          c.identityVerificationStatus === 'verified'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : c.identityVerificationStatus === 'pending'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {c.identityVerificationStatus}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
+                          c.accountStatus === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        }`}>
+                          {c.accountStatus}
+                        </span>
+                      </td>
                       <td className="p-3 capitalize">{c.registrationChannel.replace('_', ' ')}</td>
-                      <td className="p-3 font-mono">{c.createdByOperatorId || 'Self Service'}</td>
+                      <td className="p-3 text-right space-x-2 whitespace-nowrap">
+                        {c.identityVerificationStatus !== 'verified' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              store.saveCustomer({ ...c, identityVerificationStatus: 'verified', updatedAt: new Date().toISOString() });
+                              store.logAudit({
+                                actorUid: 'ADMIN',
+                                actorName: 'System Administrator',
+                                actorRole: 'admin',
+                                action: 'CUSTOMER_KYC_VERIFIED',
+                                resourceType: 'customer',
+                                resourceId: c.customerId,
+                                reason: `Verified KYC for ${c.personalInformation.fullName}`,
+                                correlationId: `KYC-${Date.now()}`
+                              });
+                            }}
+                            className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold px-2.5 py-1 rounded cursor-pointer"
+                          >
+                            Verify KYC
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextStatus = c.accountStatus === 'active' ? 'suspended' : 'active';
+                            store.saveCustomer({ ...c, accountStatus: nextStatus, updatedAt: new Date().toISOString() });
+                          }}
+                          className={`font-semibold px-2.5 py-1 rounded cursor-pointer ${
+                            c.accountStatus === 'active'
+                              ? 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                          }`}
+                        >
+                          {c.accountStatus === 'active' ? 'Suspend' : 'Activate'}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1460,13 +1548,13 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
 
         {/* TAB 4: OPERATOR MANAGEMENT */}
         {activeTab === 'operators' && (
-          <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-6">
+          <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 space-y-6">
             <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider">
               Direct-Sales Operator Management
             </h3>
 
-            <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-              <table className="w-full text-left">
+            <div className="border border-slate-200 rounded-xl overflow-x-auto text-xs">
+              <table className="w-full text-left min-w-[680px]">
                 <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                   <tr>
                     <th className="p-3">Operator ID</th>
@@ -1502,7 +1590,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                       <td className="p-3 text-right">
                         <button
                           onClick={() => handleToggleOperator(op.operatorId, op.accountStatus)}
-                          className={`text-xs font-semibold px-3 py-1 rounded transition-colors ${
+                          className={`text-xs font-semibold px-3 py-1 rounded transition-colors cursor-pointer ${
                             op.accountStatus === 'active'
                               ? 'bg-rose-50 text-rose-700 hover:bg-rose-100'
                               : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
@@ -1787,6 +1875,391 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+        {/* TAB: OFFICIAL POLICY DOCUMENTS MANAGEMENT */}
+        {activeTab === 'documents' && (
+          <div className="space-y-6">
+            {docSavedFeedback && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>{docSavedFeedback}</span>
+              </div>
+            )}
+
+            {/* Document Upload / Edit Form */}
+            {isEditingDoc && editingDoc ? (
+              <form onSubmit={handleSaveDoc} className="bg-white border border-slate-200 rounded-xl p-6 space-y-5 text-xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-[#12366e]">
+                      {adminDocs.some((d) => d.id === editingDoc.id) ? 'Edit Official Policy Document' : 'Upload / Register Official Document'}
+                    </h3>
+                    <p className="text-slate-500">Published documents immediately appear on matching public policy pages and downloads.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setIsEditingDoc(false); setEditingDoc(null); }}
+                    className="text-slate-500 hover:text-slate-800 font-semibold px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Document Title *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editingDoc.title || ''}
+                      onChange={(e) => setEditingDoc({ ...editingDoc, title: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Target Insurance Product *</label>
+                    <select
+                      value={editingDoc.productId || 'all'}
+                      onChange={(e) => setEditingDoc({ ...editingDoc, productId: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900"
+                    >
+                      <option value="all">All Products / Corporate General</option>
+                      {products.map((p) => (
+                        <option key={p.productId} value={p.productId}>
+                          {p.productName} ({p.productId})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Category</label>
+                    <select
+                      value={editingDoc.category || 'policy_wording'}
+                      onChange={(e) => setEditingDoc({ ...editingDoc, category: e.target.value as any })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900"
+                    >
+                      <option value="policy_wording">Policy Wording</option>
+                      <option value="proposal_form">Proposal Form</option>
+                      <option value="claim_guide">Claim Guide</option>
+                      <option value="tariff_table">Tariff Schedule</option>
+                      <option value="brochure">Corporate Brochure</option>
+                      <option value="regulatory_filing">Regulatory Filing</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">File Format</label>
+                    <select
+                      value={editingDoc.fileType || 'pdf'}
+                      onChange={(e) => setEditingDoc({ ...editingDoc, fileType: e.target.value as any })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900"
+                    >
+                      <option value="pdf">PDF</option>
+                      <option value="doc">DOCX</option>
+                      <option value="sheet">XLSX</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Version</label>
+                    <input
+                      type="text"
+                      value={editingDoc.version || ''}
+                      onChange={(e) => setEditingDoc({ ...editingDoc, version: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">File Size</label>
+                    <input
+                      type="text"
+                      value={editingDoc.fileSize || ''}
+                      onChange={(e) => setEditingDoc({ ...editingDoc, fileSize: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Description / Scope *</label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={editingDoc.description || ''}
+                    onChange={(e) => setEditingDoc({ ...editingDoc, description: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Executive Summary</label>
+                  <textarea
+                    rows={2}
+                    value={editingDoc.contentSummary || ''}
+                    onChange={(e) => setEditingDoc({ ...editingDoc, contentSummary: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900"
+                  />
+                </div>
+
+                <div className="space-y-3 border-t border-slate-100 pt-4">
+                  <div className="flex items-center justify-between">
+                    <label className="font-semibold text-slate-700">Official Policy Clauses & Sections</label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditingDoc({
+                          ...editingDoc,
+                          sections: [...(editingDoc.sections || []), { heading: 'New Clause Heading', body: '' }]
+                        })
+                      }
+                      className="text-[#12366e] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Clause Section</span>
+                    </button>
+                  </div>
+                  {(editingDoc.sections || []).map((sec, idx) => (
+                    <div key={idx} className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <input
+                          type="text"
+                          placeholder="Section Heading"
+                          value={sec.heading}
+                          onChange={(e) => {
+                            const updated = [...(editingDoc.sections || [])];
+                            updated[idx] = { ...updated[idx], heading: e.target.value };
+                            setEditingDoc({ ...editingDoc, sections: updated });
+                          }}
+                          className="flex-1 bg-white border border-slate-200 rounded px-2.5 py-1.5 font-semibold text-slate-900"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = (editingDoc.sections || []).filter((_, i) => i !== idx);
+                            setEditingDoc({ ...editingDoc, sections: updated });
+                          }}
+                          className="text-rose-600 hover:text-rose-800 p-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <textarea
+                        rows={2}
+                        placeholder="Clause wording..."
+                        value={sec.body}
+                        onChange={(e) => {
+                          const updated = [...(editingDoc.sections || [])];
+                          updated[idx] = { ...updated[idx], body: e.target.value };
+                          setEditingDoc({ ...editingDoc, sections: updated });
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded px-2.5 py-1.5 text-slate-800"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                  <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingDoc.isPublic !== false}
+                      onChange={(e) => setEditingDoc({ ...editingDoc, isPublic: e.target.checked })}
+                      className="rounded border-slate-300 text-[#12366e]"
+                    />
+                    <span>Publicly visible & downloadable on product pages</span>
+                  </label>
+                  <button
+                    type="submit"
+                    className="bg-[#12366e] hover:bg-[#0e2a58] text-white font-semibold px-6 py-2.5 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Publish & Sync Document
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-5 text-xs">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider flex items-center gap-2">
+                      <FolderOpen className="w-4 h-4 text-[#c59b27]" />
+                      <span>Official Policy Documentation & Regulatory Filings</span>
+                    </h3>
+                    <p className="text-slate-500 mt-0.5">
+                      Manage policy wordings, proposal forms, claim guides, and NBE tariff schedules synced to all public policy pages.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="Search documents..."
+                        value={docSearch}
+                        onChange={(e) => setDocSearch(e.target.value)}
+                        className="bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-slate-900 w-48"
+                      />
+                    </div>
+                    <select
+                      value={selectedDocCategory}
+                      onChange={(e) => setSelectedDocCategory(e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700"
+                    >
+                      <option value="all">All Categories</option>
+                      <option value="policy_wording">Policy Wordings</option>
+                      <option value="proposal_form">Proposal Forms</option>
+                      <option value="claim_guide">Claim Guides</option>
+                      <option value="tariff_table">Tariff Schedules</option>
+                      <option value="brochure">Brochures</option>
+                      <option value="regulatory_filing">Regulatory Filings</option>
+                    </select>
+                    <select
+                      value={selectedDocProductFilter}
+                      onChange={(e) => setSelectedDocProductFilter(e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 max-w-[180px]"
+                    >
+                      <option value="all">All Products</option>
+                      {products.map((p) => (
+                        <option key={p.productId} value={p.productId}>
+                          {p.productName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 rounded-xl overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">Doc ID</th>
+                        <th className="p-3">Title & Description</th>
+                        <th className="p-3">Target Product</th>
+                        <th className="p-3">Category</th>
+                        <th className="p-3">Version / Size</th>
+                        <th className="p-3">Visibility</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {adminDocs
+                        .filter((d) => {
+                          const matchesSearch =
+                            d.title.toLowerCase().includes(docSearch.toLowerCase()) ||
+                            d.id.toLowerCase().includes(docSearch.toLowerCase()) ||
+                            (d.productName || '').toLowerCase().includes(docSearch.toLowerCase());
+                          const matchesCat = selectedDocCategory === 'all' || d.category === selectedDocCategory;
+                          const matchesProd = selectedDocProductFilter === 'all' || d.productId === selectedDocProductFilter;
+                          return matchesSearch && matchesCat && matchesProd;
+                        })
+                        .map((doc) => (
+                          <tr key={doc.id} className="hover:bg-slate-50">
+                            <td className="p-3 font-mono font-bold text-[#12366e] whitespace-nowrap">{doc.id}</td>
+                            <td className="p-3 max-w-xs">
+                              <div className="font-semibold text-slate-900">{doc.title}</div>
+                              <div className="text-[11px] text-slate-500 truncate">{doc.description}</div>
+                            </td>
+                            <td className="p-3 text-slate-700">{doc.productName}</td>
+                            <td className="p-3">
+                              <span className="uppercase text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                                {doc.category.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="p-3 font-mono text-slate-600 whitespace-nowrap">
+                              {doc.version} · {doc.fileSize}
+                            </td>
+                            <td className="p-3">
+                              <span
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
+                                  doc.isPublic ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                                }`}
+                              >
+                                {doc.isPublic ? 'Public' : 'Internal'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right whitespace-nowrap space-x-1">
+                              <button
+                                onClick={() => setPreviewingDoc(doc)}
+                                title="Preview Document"
+                                className="p-1.5 text-slate-600 hover:text-[#12366e] hover:bg-slate-100 rounded cursor-pointer"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDownloadDoc(doc)}
+                                title="Download Document"
+                                className="p-1.5 text-slate-600 hover:text-[#12366e] hover:bg-slate-100 rounded cursor-pointer"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => { setEditingDoc(doc); setIsEditingDoc(true); }}
+                                title="Edit Document"
+                                className="p-1.5 text-slate-600 hover:text-[#12366e] hover:bg-slate-100 rounded cursor-pointer"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDoc(doc.id, doc.title)}
+                                title="Delete Document"
+                                className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Document Preview Modal */}
+            {previewingDoc && (
+              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+                  <div className="bg-[#12366e] text-white px-6 py-4 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#f0cb5a]">
+                        {previewingDoc.id} · {previewingDoc.version}
+                      </span>
+                      <h4 className="text-base font-bold">{previewingDoc.title}</h4>
+                    </div>
+                    <button
+                      onClick={() => setPreviewingDoc(null)}
+                      className="text-slate-300 hover:text-white text-xs font-semibold px-2.5 py-1 rounded border border-white/20 cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="p-6 overflow-y-auto space-y-4 text-xs">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1">
+                      <div className="font-bold text-[#12366e] uppercase">Africa Insurance Company (S.C.)</div>
+                      <div className="text-slate-600">Applicable Product: {previewingDoc.productName}</div>
+                      <div className="text-slate-600">Issuing Directorate: {previewingDoc.uploadedBy}</div>
+                    </div>
+                    <p className="text-slate-700 leading-relaxed">{previewingDoc.description}</p>
+                    {previewingDoc.sections?.map((sec, idx) => (
+                      <div key={idx} className="border-t border-slate-100 pt-3 space-y-1">
+                        <h5 className="font-bold text-slate-900">{idx + 1}. {sec.heading}</h5>
+                        <p className="text-slate-600 leading-relaxed">{sec.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+                    <button
+                      onClick={() => handleDownloadDoc(previewingDoc)}
+                      className="bg-[#12366e] hover:bg-[#0e2a58] text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download Official Copy</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

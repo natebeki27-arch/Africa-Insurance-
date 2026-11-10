@@ -1,31 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { store } from './services/store';
+import { subscribeToAuthSession, completeRedirectSignIn } from './services/authService';
 import { RoleSwitcher } from './components/RoleSwitcher';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 
-// Public Pages
+// Primary Public & Auth Pages (eagerly loaded for instant first paint)
 import { HomePage } from './pages/public/HomePage';
 import { ProductsPage } from './pages/public/ProductsPage';
-import { ProductDetailPage } from './pages/public/ProductDetailPage';
 import { VerifyPolicyPage } from './pages/public/VerifyPolicyPage';
-import { BranchesPage } from './pages/public/BranchesPage';
 import { AboutPage } from './pages/public/AboutPage';
 import { ContactPage } from './pages/public/ContactPage';
 import { ClaimsPage } from './pages/public/ClaimsPage';
-import { MediaPage } from './pages/public/MediaPage';
-import { LeadershipPage } from './pages/public/LeadershipPage';
-
-// Auth Pages
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { OnboardingPage } from './pages/auth/OnboardingPage';
+import { AccountStatusPage } from './pages/auth/AccountStatusPage';
 import { SecretAdminAuthPage } from './pages/auth/SecretAdminAuthPage';
 
-// Workspaces
-import { CustomerPortal } from './pages/customer/CustomerPortal';
-import { OperatorPortal } from './pages/operator/OperatorPortal';
-import { StaffWorkspace } from './pages/staff/StaffWorkspace';
-import { AdminControlCentre } from './pages/admin/AdminControlCentre';
+// Lazy-Loaded Heavy Pages & Workspaces
+const ProductDetailPage = lazy(() => import('./pages/public/ProductDetailPage').then(m => ({ default: m.ProductDetailPage })));
+const BranchesPage = lazy(() => import('./pages/public/BranchesPage').then(m => ({ default: m.BranchesPage })));
+const MediaPage = lazy(() => import('./pages/public/MediaPage').then(m => ({ default: m.MediaPage })));
+const LeadershipPage = lazy(() => import('./pages/public/LeadershipPage').then(m => ({ default: m.LeadershipPage })));
+const CustomerPortal = lazy(() => import('./pages/customer/CustomerPortal').then(m => ({ default: m.CustomerPortal })));
+const OperatorPortal = lazy(() => import('./pages/operator/OperatorPortal').then(m => ({ default: m.OperatorPortal })));
+const StaffWorkspace = lazy(() => import('./pages/staff/StaffWorkspace').then(m => ({ default: m.StaffWorkspace })));
+const AdminControlCentre = lazy(() => import('./pages/admin/AdminControlCentre').then(m => ({ default: m.AdminControlCentre })));
 
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState<string>(() => {
@@ -47,10 +48,31 @@ export default function App() {
     return new URLSearchParams();
   });
 
+  const [authReady, setAuthReady] = useState(false);
+
   // Re-render when store updates
   const [, setTick] = useState(0);
   useEffect(() => {
     return store.subscribe(() => setTick((t) => t + 1));
+  }, []);
+
+  // Firebase Authentication State Listener & Redirect Result Handler
+  useEffect(() => {
+    let mounted = true;
+    completeRedirectSignIn().then((res) => {
+      if (mounted && res?.success && res.destination) {
+        navigate(res.destination);
+      }
+    });
+    const unsubscribe = subscribeToAuthSession(() => {
+      if (mounted) {
+        setAuthReady(true);
+      }
+    });
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const navigate = (path: string) => {
@@ -122,16 +144,58 @@ export default function App() {
         return <MediaPage navigate={navigate} />;
       case '/contact':
         return <ContactPage />;
-      case '/login':
-        return <LoginPage navigate={navigate} redirectRoute={queryParams.get('redirect') ? `/${queryParams.get('redirect')}` : undefined} />;
+      case '/login': {
+        if (!authReady) {
+          return (
+            <div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-500">
+              Verifying your AIC session...
+            </div>
+          );
+        }
+        const rawRedirect = queryParams.get('redirect');
+        const resolvedRedirect = rawRedirect
+          ? rawRedirect.startsWith('/')
+            ? rawRedirect
+            : `/${rawRedirect}`
+          : undefined;
+        return <LoginPage navigate={navigate} redirectRoute={resolvedRedirect} />;
+      }
       case '/register':
+        if (!authReady) {
+          return (
+            <div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-500">
+              Verifying your AIC session...
+            </div>
+          );
+        }
         return <RegisterPage navigate={navigate} />;
+      case '/onboarding':
+        return <OnboardingPage navigate={navigate} redirectRoute={queryParams.get('redirect') || undefined} />;
+      case '/account-status':
+        return <AccountStatusPage navigate={navigate} mode="status" />;
       case '/admin-auth':
       case '/admin-login':
         return <SecretAdminAuthPage navigate={navigate} />;
 
-      // 3. Workspaces
-      case '/portal':
+      // 3. Workspaces (Protected by auth state & role checks)
+      case '/portal': {
+        if (!authReady) {
+          return (
+            <div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-500">
+              Loading your AIC policyholder workspace...
+            </div>
+          );
+        }
+        const user = store.getCurrentUser();
+        if (!user) {
+          return <LoginPage navigate={navigate} redirectRoute="/portal" />;
+        }
+        if (user.accountStatus !== 'active') {
+          return <AccountStatusPage navigate={navigate} mode="status" />;
+        }
+        if (user.accountType === 'customer' && user.onboardingStatus === 'incomplete') {
+          return <OnboardingPage navigate={navigate} redirectRoute="/portal" />;
+        }
         return (
           <CustomerPortal
             navigate={navigate}
@@ -139,7 +203,13 @@ export default function App() {
             initialProductId={queryParams.get('productId') || undefined}
           />
         );
-      case '/operator':
+      }
+      case '/operator': {
+        const user = store.getCurrentUser();
+        if (!user) return <LoginPage navigate={navigate} redirectRoute="/operator" />;
+        if (!['operator', 'admin'].includes(user.accountType)) {
+          return <AccountStatusPage navigate={navigate} mode="access_denied" />;
+        }
         return (
           <OperatorPortal
             navigate={navigate}
@@ -147,10 +217,23 @@ export default function App() {
             initialProductId={queryParams.get('productId') || undefined}
           />
         );
-      case '/staff':
+      }
+      case '/staff': {
+        const user = store.getCurrentUser();
+        if (!user) return <LoginPage navigate={navigate} redirectRoute="/staff" />;
+        if (!['staff', 'underwriter', 'admin'].includes(user.accountType)) {
+          return <AccountStatusPage navigate={navigate} mode="access_denied" />;
+        }
         return <StaffWorkspace navigate={navigate} />;
-      case '/admin':
+      }
+      case '/admin': {
+        const user = store.getCurrentUser();
+        if (!user) return <SecretAdminAuthPage navigate={navigate} />;
+        if (user.accountType !== 'admin') {
+          return <AccountStatusPage navigate={navigate} mode="access_denied" />;
+        }
         return <AdminControlCentre navigate={navigate} />;
+      }
 
       default:
         return <HomePage navigate={navigate} />;
@@ -179,7 +262,15 @@ export default function App() {
 
       {/* Page Body */}
       <div className="flex-1">
-        {renderContent()}
+        <Suspense
+          fallback={
+            <div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-500">
+              Loading AIC workspace...
+            </div>
+          }
+        >
+          {renderContent()}
+        </Suspense>
       </div>
 
       {/* Footer on public views (hidden in dense workspaces for optimal desktop screen economy) */}

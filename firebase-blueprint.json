@@ -4,17 +4,22 @@
       "fields": {
         "uid": { "type": "string" },
         "accountType": { "type": "string" },
+        "displayName": { "type": "string" },
         "firstName": { "type": "string" },
         "lastName": { "type": "string" },
         "email": { "type": "string" },
         "emailVerified": { "type": "boolean" },
+        "photoURL": { "type": "string" },
+        "authProviders": { "type": "array" },
         "phone": { "type": "string" },
         "phoneVerified": { "type": "boolean" },
         "branchId": { "type": "string" },
         "accountStatus": { "type": "string" },
+        "onboardingStatus": { "type": "string" },
         "registrationChannel": { "type": "string" },
         "createdAt": { "type": "string" },
-        "updatedAt": { "type": "string" }
+        "updatedAt": { "type": "string" },
+        "lastLoginAt": { "type": "string" }
       }
     },
     "customers": {

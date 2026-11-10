@@ -2,7 +2,13 @@ import React, { useState } from 'react';
 import { store } from '../../services/store';
 import { chapaService } from '../../services/chapa';
 import {
+  linkGoogleAccountToCurrentUser,
+  sendResetPasswordEmail,
+  signOutUser
+} from '../../services/authService';
+import {
   Shield,
+  ShieldCheck,
   FileText,
   FileCheck,
   CreditCard,
@@ -40,17 +46,19 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   initialProductId
 }) => {
   const currentUser = store.getCurrentUser();
-  const customerId = currentUser?.uid ? 'CUST-001' : 'CUST-001'; // Map demo account or fallback
+  const customerId = currentUser?.uid || '';
   const allPolicies = store.getPolicies().filter((p) => p.customerId === customerId);
   const allApplications = store.getApplications().filter((a) => a.customerId === customerId);
   const products = store.getPublishedProducts();
+  const [securityFeedback, setSecurityFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const isNewAppAction = initialAction === 'new_app' || initialAction === 'new-application';
   const [activeTab, setActiveTab] = useState<'dashboard' | 'applications' | 'policies' | 'payments' | 'claims' | 'profile'>(
-    initialAction === 'new_app' ? 'applications' : 'dashboard'
+    isNewAppAction ? 'applications' : 'dashboard'
   );
 
   // New Application Wizard State
-  const [isCreatingApp, setIsCreatingApp] = useState(initialAction === 'new_app');
+  const [isCreatingApp, setIsCreatingApp] = useState(isNewAppAction);
   const [selectedProductId, setSelectedProductId] = useState(initialProductId || products[0]?.productId || '');
   const [appFormAnswers, setAppFormAnswers] = useState<Record<string, any>>({});
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; size: number; code: string }[]>([]);
@@ -173,10 +181,11 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
     if (!checkoutTarget) return;
     setIsProcessingPayment(true);
 
+    const payAttemptId = `PAY-${Date.now()}`;
     const txRef = `AIC-CHAPA-2026-${Date.now().toString().slice(-5)}`;
     // Record payment attempt
     store.createPaymentAttempt({
-      paymentAttemptId: `PAY-${Date.now()}`,
+      paymentAttemptId: payAttemptId,
       customerId,
       applicationId: checkoutTarget.applicationId,
       quotationId: checkoutTarget.quotationId,
@@ -195,7 +204,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
     const verifyRes = await chapaService.verifyPayment(txRef, checkoutTarget.amountETB);
 
     if (verifyRes.verified) {
-      store.verifyPaymentAttempt(`PAY-${Date.now()}`, true);
+      store.verifyPaymentAttempt(payAttemptId, true);
       setPaymentDone(true);
       setIsProcessingPayment(false);
 
@@ -362,23 +371,71 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
         </div>
 
         {/* User Card */}
-        <div className="p-4 border-t border-slate-100 text-xs">
+        <div className="p-4 border-t border-slate-100 text-xs space-y-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center shrink-0">
-              {currentUser?.firstName?.[0] || 'A'}
-            </div>
+            {currentUser?.photoURL ? (
+              <img
+                src={currentUser.photoURL}
+                alt={currentUser.displayName || currentUser.firstName}
+                className="w-8 h-8 rounded-full object-cover border border-slate-300 shrink-0"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center shrink-0">
+                {(currentUser?.firstName?.[0] || 'A').toUpperCase()}
+              </div>
+            )}
             <div className="overflow-hidden">
               <div className="font-semibold text-slate-900 truncate">
-                {currentUser?.firstName} {currentUser?.lastName}
+                {currentUser?.displayName || `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim()}
               </div>
               <div className="text-[11px] text-slate-500 truncate">{currentUser?.email}</div>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={async () => {
+              await signOutUser();
+              navigate('/login');
+            }}
+            className="w-full flex items-center justify-center gap-1.5 py-2 border border-slate-200 rounded-lg text-rose-700 hover:bg-rose-50 font-semibold transition-colors cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign out</span>
+          </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-6 sm:p-10 max-w-6xl mx-auto space-y-8 overflow-y-auto">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-6 sm:space-y-8 overflow-y-auto">
+        {/* Mobile Navigation Bar */}
+        <div className="md:hidden -mx-4 px-4 pb-3 border-b border-slate-200 flex items-center gap-2 overflow-x-auto">
+          {[
+            { id: 'dashboard', label: 'Overview' },
+            { id: 'applications', label: `Applications (${allApplications.length})` },
+            { id: 'policies', label: `Policies (${allPolicies.length})` },
+            { id: 'payments', label: 'Payments' },
+            { id: 'claims', label: 'Claims' },
+            { id: 'profile', label: 'Profile & Security' }
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setActiveTab(item.id as any);
+                setIsCreatingApp(false);
+              }}
+              className={`shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                activeTab === item.id && !isCreatingApp
+                  ? 'bg-[#12366e] text-white'
+                  : 'bg-white border border-slate-200 text-slate-700'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
           <div>
@@ -947,6 +1004,71 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
                 <span className="text-slate-400 block text-[11px]">Assigned Servicing Branch</span>
                 <strong className="text-slate-900 mt-1 block">Bole Commercial Branch (Addis Ababa)</strong>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 space-y-3">
+              <h4 className="font-semibold text-slate-900">Linked Authentication &amp; Account Security</h4>
+              {securityFeedback && (
+                <div
+                  className={`p-3 rounded-lg text-xs font-medium ${
+                    securityFeedback.type === 'success'
+                      ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                      : 'bg-rose-50 border border-rose-200 text-rose-800'
+                  }`}
+                >
+                  {securityFeedback.text}
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-3">
+                {!currentUser?.authProviders?.includes('google.com') ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const res = await linkGoogleAccountToCurrentUser();
+                      if (res.success) {
+                        setSecurityFeedback({ type: 'success', text: 'Your Google account has been securely linked.' });
+                      } else {
+                        setSecurityFeedback({ type: 'error', text: res.errorMessage || 'Could not link Google account.' });
+                      }
+                    }}
+                    className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-semibold px-4 py-2 rounded-lg text-xs cursor-pointer"
+                  >
+                    Link Google Account
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-1.5 rounded-lg font-semibold">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Google Account Linked</span>
+                  </span>
+                )}
+
+                {currentUser?.email && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const res = await sendResetPasswordEmail(currentUser.email);
+                      setSecurityFeedback({
+                        type: res.success ? 'success' : 'error',
+                        text: res.message
+                      });
+                    }}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold px-4 py-2 rounded-lg text-xs cursor-pointer"
+                  >
+                    Send Password Reset Email
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await signOutUser();
+                    navigate('/login');
+                  }}
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-4 py-2 rounded-lg text-xs cursor-pointer"
+                >
+                  Sign Out of Session
+                </button>
               </div>
             </div>
 

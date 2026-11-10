@@ -261,7 +261,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex overflow-x-hidden">
       {/* Operator Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 hidden md:flex">
         <div>
@@ -353,8 +353,8 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
       </aside>
 
       {/* Main Workspace View */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-6 sm:space-y-8 overflow-y-auto">
-        <div className="md:hidden -mx-4 px-4 pb-3 border-b border-slate-200 flex items-center gap-2 overflow-x-auto">
+      <main className="flex-1 min-w-0 p-3 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-4 sm:space-y-8 overflow-y-auto overflow-x-hidden">
+        <div className="md:hidden -mx-3 px-3 pb-2.5 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'customers', label: 'Customers' },
@@ -366,7 +366,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
               key={tab.id}
               type="button"
               onClick={() => { setActiveTab(tab.id as any); setIsCreatingApp(false); }}
-              className={`shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+              className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
                 activeTab === tab.id ? 'bg-[#12366e] text-white' : 'bg-white border border-slate-200 text-slate-700'
               }`}
             >

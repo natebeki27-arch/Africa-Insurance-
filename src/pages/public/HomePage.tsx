@@ -434,10 +434,13 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
         <div className="absolute inset-0 z-0 overflow-hidden">
           {HERO_SLIDES.map((slide, idx) => {
             const isSlideActive = idx === currentSlideIdx;
+            if (idx !== 0 && !isSlideActive) {
+              return null;
+            }
             return (
               <div
                 key={slide.id}
-                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
                   isSlideActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                 }`}
               >
@@ -448,6 +451,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                       <img
                         src={slide.bgImage}
                         alt={slide.bgAlt}
+                        decoding="async"
                         className="w-full h-full object-cover object-center scale-105 transition-transform duration-7000 ease-out"
                       />
                     </picture>
@@ -456,6 +460,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                       loop
                       muted
                       playsInline
+                      preload="metadata"
                       poster={slide.bgImage}
                       className="absolute inset-0 w-full h-full object-cover object-center scale-105 pointer-events-none"
                     >
@@ -469,6 +474,8 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                     <img
                       src={slide.bgImage}
                       alt={slide.bgAlt}
+                      fetchPriority={idx === 0 ? 'high' : 'auto'}
+                      decoding="async"
                       className="w-full h-full object-cover object-center scale-105 transition-transform duration-7000 ease-out"
                     />
                   </picture>
@@ -802,6 +809,8 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
               <img
                 src="/assets/aic_family_protection_1793894083687.jpg"
                 alt="Ethiopian Family Security"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
@@ -873,6 +882,8 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
               <img
                 src="/assets/aic_fleet_logistics_1793894083707.jpg"
                 alt="Ethiopian Commercial Logistics Fleet"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />

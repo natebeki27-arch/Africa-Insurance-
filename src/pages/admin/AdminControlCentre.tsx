@@ -474,7 +474,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex overflow-x-hidden">
       {/* Administrator Persistent Sidebar (Loom Command Centre Architecture) */}
       <aside className="w-64 bg-gradient-to-b from-[#0c2550] to-[#0e2a58] text-slate-300 flex flex-col justify-between shrink-0 hidden md:flex border-r border-[#184486]/40">
         <div>
@@ -609,9 +609,9 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
       </aside>
 
       {/* Main Admin Viewport */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-6 sm:space-y-8 overflow-y-auto">
+      <main className="flex-1 min-w-0 p-3 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-4 sm:space-y-8 overflow-y-auto overflow-x-hidden">
         {/* Mobile Admin Navigation Bar */}
-        <div className="md:hidden -mx-4 px-4 pb-3 border-b border-slate-200 flex items-center gap-2 overflow-x-auto">
+        <div className="md:hidden -mx-3 px-3 pb-2.5 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto">
           {[
             { id: 'overview', label: 'Metrics' },
             { id: 'content', label: 'CMS' },

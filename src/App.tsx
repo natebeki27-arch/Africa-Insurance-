@@ -5,18 +5,20 @@ import { RoleSwitcher } from './components/RoleSwitcher';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 
-// Primary Public & Auth Pages (eagerly loaded for instant first paint)
+// Primary Landing Page (eagerly loaded for instant first paint)
 import { HomePage } from './pages/public/HomePage';
-import { ProductsPage } from './pages/public/ProductsPage';
-import { VerifyPolicyPage } from './pages/public/VerifyPolicyPage';
-import { AboutPage } from './pages/public/AboutPage';
-import { ContactPage } from './pages/public/ContactPage';
-import { ClaimsPage } from './pages/public/ClaimsPage';
-import { LoginPage } from './pages/auth/LoginPage';
-import { RegisterPage } from './pages/auth/RegisterPage';
-import { OnboardingPage } from './pages/auth/OnboardingPage';
-import { AccountStatusPage } from './pages/auth/AccountStatusPage';
-import { SecretAdminAuthPage } from './pages/auth/SecretAdminAuthPage';
+
+// Lazy-Loaded Public & Auth Pages
+const ProductsPage = lazy(() => import('./pages/public/ProductsPage').then(m => ({ default: m.ProductsPage })));
+const VerifyPolicyPage = lazy(() => import('./pages/public/VerifyPolicyPage').then(m => ({ default: m.VerifyPolicyPage })));
+const AboutPage = lazy(() => import('./pages/public/AboutPage').then(m => ({ default: m.AboutPage })));
+const ContactPage = lazy(() => import('./pages/public/ContactPage').then(m => ({ default: m.ContactPage })));
+const ClaimsPage = lazy(() => import('./pages/public/ClaimsPage').then(m => ({ default: m.ClaimsPage })));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage').then(m => ({ default: m.LoginPage })));
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage').then(m => ({ default: m.RegisterPage })));
+const OnboardingPage = lazy(() => import('./pages/auth/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
+const AccountStatusPage = lazy(() => import('./pages/auth/AccountStatusPage').then(m => ({ default: m.AccountStatusPage })));
+const SecretAdminAuthPage = lazy(() => import('./pages/auth/SecretAdminAuthPage').then(m => ({ default: m.SecretAdminAuthPage })));
 
 // Lazy-Loaded Heavy Pages & Workspaces
 const ProductDetailPage = lazy(() => import('./pages/public/ProductDetailPage').then(m => ({ default: m.ProductDetailPage })));

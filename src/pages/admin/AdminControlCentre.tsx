@@ -680,6 +680,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
           </div>
         </div>
 
+        <div key={activeTab} className="aic-view-transition space-y-4 sm:space-y-8">
         {/* TAB 1: OVERVIEW & REAL DATABASE METRICS */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
@@ -2262,6 +2263,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
             )}
           </div>
         )}
+        </div>
       </main>
     </div>
   );

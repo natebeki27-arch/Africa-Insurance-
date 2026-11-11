@@ -282,6 +282,7 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
         )}
 
         {/* TAB 1: REVIEW QUEUE */}
+        <div key={selectedApp ? `app-${selectedApp.applicationId}` : activeTab} className="aic-view-transition space-y-4 sm:space-y-8">
         {activeTab === 'queue' && (
           <div className="space-y-6">
             {selectedApp ? (
@@ -527,6 +528,7 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
             </div>
           </div>
         )}
+        </div>
       </main>
     </div>
   );

@@ -22,6 +22,7 @@ import {
 import { auth, db, googleProvider } from '../firebase/config';
 import { store } from './store';
 import { CustomerProfile, UserAccount, UserRole } from '../types/insurance';
+import { startGlobalProgress, doneGlobalProgress } from '../components/TopProgressBar';
 
 export interface AuthActionResult {
   success: boolean;
@@ -116,69 +117,107 @@ export function getDestinationForAccount(user: UserAccount, intendedRedirect?: s
   }
 }
 
+const inFlightProvisioning = new Map<
+  string,
+  Promise<{ userAccount: UserAccount; customerProfile: CustomerProfile | null; isNewUser: boolean }>
+>();
+
 export async function provisionOrLoadAccount(
   firebaseUser: User,
   providerUsed: 'google.com' | 'password'
 ): Promise<{ userAccount: UserAccount; customerProfile: CustomerProfile | null; isNewUser: boolean }> {
   const uid = firebaseUser.uid;
-  const now = new Date().toISOString();
-  const userRef = doc(db, 'users', uid);
-  const { firstName, lastName } = splitDisplayName(firebaseUser.displayName, firebaseUser.email);
-  const providerIds = firebaseUser.providerData.map((p) => p.providerId).filter(Boolean);
-  if (providerIds.length === 0) providerIds.push(providerUsed);
+  const existingPromise = inFlightProvisioning.get(uid);
+  if (existingPromise) {
+    return existingPromise;
+  }
 
-  let isNewUser = false;
+  const run = (async () => {
+    const now = new Date().toISOString();
+    const userRef = doc(db, 'users', uid);
+    const { firstName, lastName } = splitDisplayName(firebaseUser.displayName, firebaseUser.email);
+    const providerIds = firebaseUser.providerData.map((p) => p.providerId).filter(Boolean);
+    if (providerIds.length === 0) providerIds.push(providerUsed);
 
-  const userAccount = await runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(userRef);
-    if (!snap.exists()) {
-      isNewUser = true;
-      const newUser: UserAccount = {
-        uid,
-        accountType: 'customer', // Strictly customer on self-registration
-        displayName: firebaseUser.displayName || `${firstName} ${lastName}`.trim(),
-        firstName,
-        lastName,
-        email: firebaseUser.email || '',
-        emailVerified: firebaseUser.emailVerified,
-        photoURL: firebaseUser.photoURL || '',
-        authProviders: providerIds,
-        phone: firebaseUser.phoneNumber || '',
-        phoneVerified: Boolean(firebaseUser.phoneNumber),
-        accountStatus: 'active',
-        onboardingStatus: 'incomplete',
-        registrationChannel: 'self_service',
-        createdAt: now,
-        updatedAt: now,
-        lastLoginAt: now
-      };
-      transaction.set(userRef, newUser);
-      return newUser;
-    } else {
-      const existing = snap.data() as UserAccount;
-      const mergedProviders = Array.from(new Set([...(existing.authProviders || []), ...providerIds]));
-      const updatedUser: UserAccount = {
-        ...existing,
-        displayName: existing.displayName || firebaseUser.displayName || `${existing.firstName} ${existing.lastName}`.trim(),
-        email: existing.email || firebaseUser.email || '',
-        emailVerified: existing.emailVerified || firebaseUser.emailVerified,
-        photoURL: firebaseUser.photoURL || existing.photoURL || '',
-        authProviders: mergedProviders,
-        updatedAt: now,
-        lastLoginAt: now
-      };
-      // Only update safe mutable fields (never touch accountType or accountStatus)
-      transaction.update(userRef, {
-        displayName: updatedUser.displayName,
-        emailVerified: updatedUser.emailVerified,
-        photoURL: updatedUser.photoURL,
-        authProviders: mergedProviders,
-        updatedAt: now,
-        lastLoginAt: now
+    let isNewUser = false;
+    let userAccount: UserAccount;
+
+    try {
+      userAccount = await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(userRef);
+        if (!snap.exists()) {
+          isNewUser = true;
+          const newUser: UserAccount = {
+            uid,
+            accountType: 'customer',
+            displayName: firebaseUser.displayName || `${firstName} ${lastName}`.trim(),
+            firstName,
+            lastName,
+            email: firebaseUser.email || '',
+            emailVerified: firebaseUser.emailVerified,
+            photoURL: firebaseUser.photoURL || '',
+            authProviders: providerIds,
+            phone: firebaseUser.phoneNumber || '',
+            phoneVerified: Boolean(firebaseUser.phoneNumber),
+            accountStatus: 'active',
+            onboardingStatus: 'incomplete',
+            registrationChannel: 'self_service',
+            createdAt: now,
+            updatedAt: now,
+            lastLoginAt: now
+          };
+          transaction.set(userRef, newUser);
+          return newUser;
+        } else {
+          const existing = snap.data() as UserAccount;
+          const mergedProviders = Array.from(new Set([...(existing.authProviders || []), ...providerIds]));
+          const updatedUser: UserAccount = {
+            ...existing,
+            displayName: existing.displayName || firebaseUser.displayName || `${existing.firstName} ${existing.lastName}`.trim(),
+            email: existing.email || firebaseUser.email || '',
+            emailVerified: existing.emailVerified || firebaseUser.emailVerified,
+            photoURL: firebaseUser.photoURL || existing.photoURL || '',
+            authProviders: mergedProviders,
+            updatedAt: now,
+            lastLoginAt: now
+          };
+          transaction.update(userRef, {
+            displayName: updatedUser.displayName,
+            emailVerified: updatedUser.emailVerified,
+            photoURL: updatedUser.photoURL,
+            authProviders: mergedProviders,
+            updatedAt: now,
+            lastLoginAt: now
+          });
+          return updatedUser;
+        }
       });
-      return updatedUser;
+    } catch (err) {
+      console.error('Firestore user provisioning fallback triggered:', err);
+      const cached = store.getCurrentUser();
+      userAccount =
+        cached && cached.uid === uid
+          ? { ...cached, lastLoginAt: now, updatedAt: now }
+          : {
+              uid,
+              accountType: 'customer',
+              displayName: firebaseUser.displayName || `${firstName} ${lastName}`.trim(),
+              firstName,
+              lastName,
+              email: firebaseUser.email || '',
+              emailVerified: firebaseUser.emailVerified,
+              photoURL: firebaseUser.photoURL || '',
+              authProviders: providerIds,
+              phone: firebaseUser.phoneNumber || '',
+              phoneVerified: Boolean(firebaseUser.phoneNumber),
+              accountStatus: 'active',
+              onboardingStatus: 'incomplete',
+              registrationChannel: 'self_service',
+              createdAt: now,
+              updatedAt: now,
+              lastLoginAt: now
+            };
     }
-  });
 
   // Load existing customer profile if any
   let customerProfile: CustomerProfile | null = null;
@@ -216,6 +255,16 @@ export async function provisionOrLoadAccount(
   }
 
   return { userAccount, customerProfile, isNewUser };
+  })();
+
+  inFlightProvisioning.set(uid, run);
+  startGlobalProgress();
+  try {
+    return await run;
+  } finally {
+    inFlightProvisioning.delete(uid);
+    doneGlobalProgress();
+  }
 }
 
 function mapFirebaseAuthError(error: any): { code: string; message: string; conflictEmail?: string } {
@@ -234,7 +283,7 @@ function mapFirebaseAuthError(error: any): { code: string; message: string; conf
     case 'auth/popup-blocked':
       return {
         code,
-        message: 'Your browser blocked the Google sign-in popup. Redirecting to Google sign-in...'
+        message: 'Your browser blocked the Google sign-in popup. Please allow popups for this site and click Continue with Google again.'
       };
     case 'auth/account-exists-with-different-credential':
       return {
@@ -270,11 +319,18 @@ function mapFirebaseAuthError(error: any): { code: string; message: string; conf
         code,
         message: 'Too many unsuccessful attempts. Please wait a few minutes before trying again.'
       };
-    case 'auth/unauthorized-domain':
+    case 'auth/unauthorized-domain': {
+      const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+      return {
+        code,
+        message: `The domain "${host}" is not listed in Firebase Authorized Domains. Add "${host}" in Firebase Console > Authentication > Settings > Authorized domains.`
+      };
+    }
+    case 'auth/operation-not-allowed':
       return {
         code,
         message:
-          'This domain is not yet listed in Firebase Authorized Domains. Please add this host in the Firebase Console under Authentication > Settings > Authorized domains.'
+          'Email/Password sign-in is not enabled in Firebase Console yet. Please use Continue with Google, or enable Email/Password under Authentication > Sign-in method in Firebase Console.'
       };
     default:
       return {
@@ -290,11 +346,7 @@ export async function signInWithGoogle(intendedRedirect?: string): Promise<AuthA
   }
 
   try {
-    if (isMobileBrowser()) {
-      await signInWithRedirect(auth, googleProvider);
-      return { success: true, redirectInitiated: true };
-    }
-
+    // Always prefer signInWithPopup so iframe & mobile environments with allowlisted JS origins work reliably
     const result = await signInWithPopup(auth, googleProvider);
     const { userAccount, customerProfile } = await provisionOrLoadAccount(result.user, 'google.com');
     const destination = getDestinationForAccount(userAccount, intendedRedirect);
@@ -305,7 +357,7 @@ export async function signInWithGoogle(intendedRedirect?: string): Promise<AuthA
       destination
     };
   } catch (error: any) {
-    if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/operation-not-supported-in-this-environment') {
+    if (error?.code === 'auth/operation-not-supported-in-this-environment') {
       try {
         await signInWithRedirect(auth, googleProvider);
         return { success: true, redirectInitiated: true };
@@ -313,6 +365,13 @@ export async function signInWithGoogle(intendedRedirect?: string): Promise<AuthA
         const mapped = mapFirebaseAuthError(redirectError);
         return { success: false, errorCode: mapped.code, errorMessage: mapped.message };
       }
+    }
+    if (error?.code === 'auth/popup-blocked') {
+      return {
+        success: false,
+        errorCode: error.code,
+        errorMessage: 'Your browser blocked the Google sign-in popup. Please allow popups for this site and click Continue with Google again.'
+      };
     }
     const mapped = mapFirebaseAuthError(error);
     return {
@@ -435,92 +494,106 @@ export async function saveOnboardingProgress(
   payload: Partial<OnboardingPayload>,
   markComplete: boolean
 ): Promise<{ userAccount: UserAccount; customerProfile: CustomerProfile }> {
-  const now = new Date().toISOString();
-  const userRef = doc(db, 'users', uid);
-  const custRef = doc(db, 'customers', uid);
+  startGlobalProgress();
+  try {
+    const now = new Date().toISOString();
+    const userRef = doc(db, 'users', uid);
+    const custRef = doc(db, 'customers', uid);
 
-  const result = await runTransaction(db, async (transaction) => {
-    const userSnap = await transaction.get(userRef);
-    const custSnap = await transaction.get(custRef);
-    const existingUser = (userSnap.exists() ? userSnap.data() : store.getCurrentUser()) as UserAccount;
+    const result = await runTransaction(db, async (transaction) => {
+      const userSnap = await transaction.get(userRef);
+      const custSnap = await transaction.get(custRef);
+      const existingUser = (userSnap.exists() ? userSnap.data() : store.getCurrentUser()) as UserAccount;
 
-    const firstName = payload.firstName?.trim() || existingUser?.firstName || '';
-    const lastName = payload.lastName?.trim() || existingUser?.lastName || '';
-    const fullName = `${firstName} ${lastName}`.trim() || existingUser?.displayName || 'AIC Customer';
-    const custNumber = custSnap.exists()
-      ? (custSnap.data() as CustomerProfile).customerNumber
-      : `AIC-CUST-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const firstName = payload.firstName?.trim() || existingUser?.firstName || '';
+      const lastName = payload.lastName?.trim() || existingUser?.lastName || '';
+      const fullName = `${firstName} ${lastName}`.trim() || existingUser?.displayName || 'AIC Customer';
+      const custNumber = custSnap.exists()
+        ? (custSnap.data() as CustomerProfile).customerNumber
+        : `AIC-CUST-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const updatedUser: UserAccount = {
-      ...existingUser,
-      firstName,
-      lastName,
-      displayName: fullName,
-      phone: payload.phone?.trim() || existingUser?.phone || '',
-      onboardingStatus: markComplete ? 'complete' : 'incomplete',
-      updatedAt: now,
-      consentRecords: markComplete
-        ? {
-            termsAccepted: Boolean(payload.termsAccepted),
-            dataProcessingAccepted: Boolean(payload.privacyAccepted),
-            marketingConsent: Boolean(payload.marketingConsent),
-            timestamp: now
-          }
-        : existingUser?.consentRecords
-    };
+      const updatedUser: UserAccount = {
+        ...existingUser,
+        firstName,
+        lastName,
+        displayName: fullName,
+        phone: payload.phone?.trim() || existingUser?.phone || '',
+        onboardingStatus: markComplete ? 'complete' : 'incomplete',
+        updatedAt: now,
+        consentRecords: markComplete
+          ? {
+              termsAccepted: Boolean(payload.termsAccepted),
+              dataProcessingAccepted: Boolean(payload.privacyAccepted),
+              marketingConsent: Boolean(payload.marketingConsent),
+              timestamp: now
+            }
+          : existingUser?.consentRecords
+      };
 
-    const customerProfile: CustomerProfile = {
-      customerId: uid,
-      authUid: uid,
-      customerNumber: custNumber,
-      customerType: 'individual',
-      personalInformation: {
-        fullName,
-        idType: payload.idType || 'national_id',
-        idNumberMasked: payload.idNumber ? `ETH-****-${payload.idNumber.slice(-4)}` : 'PENDING-KYC'
-      },
-      contactInformation: {
-        primaryPhone: payload.phone?.trim() || '',
-        email: existingUser?.email || '',
-        preferredLanguage: payload.preferredLanguage || 'english'
-      },
-      address: {
-        city: payload.city || 'Addis Ababa',
-        subcityOrZone: payload.subcity || 'Bole',
-        region: payload.city === 'Addis Ababa' ? 'Addis Ababa' : 'Ethiopia'
-      },
-      identityVerificationStatus: payload.idNumber ? 'pending' : 'unverified',
-      accountStatus: 'active',
-      registrationChannel: 'self_service',
-      createdAt: custSnap.exists() ? (custSnap.data() as CustomerProfile).createdAt : now,
-      updatedAt: now
-    };
+      const customerProfile: CustomerProfile = {
+        customerId: uid,
+        authUid: uid,
+        customerNumber: custNumber,
+        customerType: 'individual',
+        personalInformation: {
+          fullName,
+          idType: payload.idType || 'national_id',
+          idNumberMasked: payload.idNumber ? `ETH-****-${payload.idNumber.slice(-4)}` : 'PENDING-KYC'
+        },
+        contactInformation: {
+          primaryPhone: payload.phone?.trim() || '',
+          email: existingUser?.email || '',
+          preferredLanguage: payload.preferredLanguage || 'english'
+        },
+        address: {
+          city: payload.city || 'Addis Ababa',
+          subcityOrZone: payload.subcity || 'Bole',
+          region: payload.city === 'Addis Ababa' ? 'Addis Ababa' : 'Ethiopia'
+        },
+        identityVerificationStatus: payload.idNumber ? 'pending' : 'unverified',
+        accountStatus: 'active',
+        registrationChannel: 'self_service',
+        createdAt: custSnap.exists() ? (custSnap.data() as CustomerProfile).createdAt : now,
+        updatedAt: now
+      };
 
-    transaction.update(userRef, {
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
-      displayName: updatedUser.displayName,
-      phone: updatedUser.phone,
-      onboardingStatus: updatedUser.onboardingStatus,
-      updatedAt: now,
-      ...(updatedUser.consentRecords ? { consentRecords: updatedUser.consentRecords } : {})
+      transaction.set(
+        userRef,
+        {
+          uid,
+          accountType: existingUser?.accountType || 'customer',
+          accountStatus: existingUser?.accountStatus || 'active',
+          email: existingUser?.email || '',
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          displayName: updatedUser.displayName,
+          phone: updatedUser.phone,
+          onboardingStatus: updatedUser.onboardingStatus,
+          createdAt: existingUser?.createdAt || now,
+          updatedAt: now,
+          ...(updatedUser.consentRecords ? { consentRecords: updatedUser.consentRecords } : {})
+        },
+        { merge: true }
+      );
+      transaction.set(custRef, customerProfile, { merge: true });
+
+      return { userAccount: updatedUser, customerProfile };
     });
-    transaction.set(custRef, customerProfile, { merge: true });
 
-    return { userAccount: updatedUser, customerProfile };
-  });
+    store.saveCustomer(result.customerProfile);
+    store.setCurrentUser(result.userAccount);
 
-  store.saveCustomer(result.customerProfile);
-  store.setCurrentUser(result.userAccount);
+    await logSecurityEvent({
+      uid,
+      eventType: markComplete ? 'ONBOARDING_COMPLETED' : 'ONBOARDING_DRAFT_SAVED',
+      provider: 'firestore',
+      outcome: 'success'
+    });
 
-  await logSecurityEvent({
-    uid,
-    eventType: markComplete ? 'ONBOARDING_COMPLETED' : 'ONBOARDING_DRAFT_SAVED',
-    provider: 'firestore',
-    outcome: 'success'
-  });
-
-  return result;
+    return result;
+  } finally {
+    doneGlobalProgress();
+  }
 }
 
 export async function signOutUser(): Promise<void> {

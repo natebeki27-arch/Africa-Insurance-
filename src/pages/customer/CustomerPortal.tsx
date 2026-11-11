@@ -461,6 +461,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
           </button>
         </div>
 
+        <div key={isCreatingApp ? 'create-app' : activeTab} className="aic-view-transition space-y-4 sm:space-y-8">
         {/* TAB 1: OVERVIEW DASHBOARD */}
         {activeTab === 'dashboard' && !isCreatingApp && (
           <div className="space-y-8">
@@ -1085,6 +1086,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             </div>
           </div>
         )}
+        </div>
       </main>
 
       {/* POLICY CERTIFICATE / SCHEDULE MODAL */}

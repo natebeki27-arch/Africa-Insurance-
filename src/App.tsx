@@ -4,6 +4,24 @@ import { subscribeToAuthSession, completeRedirectSignIn } from './services/authS
 import { RoleSwitcher } from './components/RoleSwitcher';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
+import {
+  TopProgressBar,
+  startGlobalProgress,
+  doneGlobalProgress,
+  pulseGlobalProgress
+} from './components/TopProgressBar';
+
+const RouteLoadingFallback: React.FC<{ message?: string }> = ({ message = 'Loading AIC workspace...' }) => {
+  useEffect(() => {
+    startGlobalProgress();
+    return () => doneGlobalProgress();
+  }, []);
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-500">
+      {message}
+    </div>
+  );
+};
 
 // Primary Landing Page (eagerly loaded for instant first paint)
 import { HomePage } from './pages/public/HomePage';
@@ -79,6 +97,7 @@ export default function App() {
 
   const navigate = (path: string) => {
     if (typeof window !== 'undefined') {
+      pulseGlobalProgress(260);
       window.location.hash = path;
       const cleanPath = path.split('?')[0];
       const queryIdx = path.indexOf('?');
@@ -94,6 +113,7 @@ export default function App() {
 
   useEffect(() => {
     const handleHashChange = () => {
+      pulseGlobalProgress(220);
       const hash = window.location.hash.replace(/^#/, '') || '/';
       const cleanPath = hash.split('?')[0];
       const queryIdx = hash.indexOf('?');
@@ -249,13 +269,18 @@ export default function App() {
   if (isAuthSecret) {
     return (
       <div className="min-h-screen font-sans text-slate-100 bg-[#08172e]">
-        {renderContent()}
+        <TopProgressBar />
+        <div key={currentRoute} className="aic-view-transition">
+          {renderContent()}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col font-sans text-slate-900 bg-slate-50">
+      <TopProgressBar />
+
       {/* Rapid Role Switcher Banner ONLY shown inside authorized internal workspaces */}
       {isInternalWorkspace && <RoleSwitcher />}
 
@@ -264,14 +289,10 @@ export default function App() {
 
       {/* Page Body */}
       <div className="flex-1">
-        <Suspense
-          fallback={
-            <div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-500">
-              Loading AIC workspace...
-            </div>
-          }
-        >
-          {renderContent()}
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <div key={currentRoute} className="aic-view-transition">
+            {renderContent()}
+          </div>
         </Suspense>
       </div>
 

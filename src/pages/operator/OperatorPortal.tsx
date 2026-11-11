@@ -398,6 +398,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
           </div>
         </div>
 
+        <div key={activeTab} className="aic-view-transition space-y-4 sm:space-y-8">
         {/* TAB 1: OVERVIEW DASHBOARD */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
@@ -1040,6 +1041,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
             </div>
           </div>
         )}
+        </div>
       </main>
     </div>
   );

@@ -60,11 +60,15 @@ service cloud.firestore {
 
     // --- CUSTOMERS ---
     match /customers/{customerId} {
-      allow read: if isOwner(resource.data.authUid) || 
-                   (isOperator() && resource.data.createdByOperatorId == request.auth.uid) ||
+      allow read: if isOwner(customerId) ||
+                   (resource != null && (
+                     isOwner(resource.data.authUid) ||
+                     (isOperator() && resource.data.createdByOperatorId == request.auth.uid)
+                   )) ||
                    isStaff();
-      allow create: if (isAuthenticated() && request.auth.uid == request.resource.data.authUid) || isOperator();
-      allow update: if isOwner(resource.data.authUid) || 
+      allow create: if (isAuthenticated() && (customerId == request.auth.uid || request.auth.uid == request.resource.data.authUid)) || isOperator();
+      allow update: if isOwner(customerId) ||
+                    isOwner(resource.data.authUid) ||
                     (isOperator() && resource.data.createdByOperatorId == request.auth.uid) ||
                     isStaff();
       allow delete: if false;

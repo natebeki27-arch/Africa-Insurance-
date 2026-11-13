@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { store } from '../../services/store';
 import { chapaService } from '../../services/chapa';
 import {
@@ -6,6 +6,15 @@ import {
   sendResetPasswordEmail,
   signOutUser
 } from '../../services/authService';
+import {
+  calculateProductQuoteETB,
+  persistApplicationToFirestore,
+  persistClaimToFirestore,
+  persistPaymentAndPolicyToFirestore,
+  syncCustomerWorkspaceFromFirestore,
+  updateCustomerProfileInFirestore
+} from '../../services/portalFirestore';
+import { useLanguage, AppLanguage } from '../../i18n/LanguageContext';
 import {
   Shield,
   ShieldCheck,
@@ -25,13 +34,18 @@ import {
   ExternalLink,
   ChevronRight,
   Building,
-  Car
+  Car,
+  Briefcase,
+  Search,
+  Check
 } from 'lucide-react';
+import { ProductDetailPage } from '../public/ProductDetailPage';
 import {
   InsurancePolicy,
   InsuranceApplication,
   InsuranceProduct,
-  InsuranceClaim
+  InsuranceClaim,
+  PaymentAttempt
 } from '../../types/insurance';
 
 interface CustomerPortalProps {
@@ -46,19 +60,44 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   initialProductId
 }) => {
   const currentUser = store.getCurrentUser();
+  const { language, setLanguage } = useLanguage();
   const customerId = currentUser?.uid || '';
+  const customerProfile = store.getCustomers().find((c) => c.authUid === customerId);
+  const fullDisplayName =
+    `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
+    currentUser?.displayName ||
+    'AIC Policyholder';
+  const contactPhone = currentUser?.phone || customerProfile?.contactInformation?.primaryPhone || '';
+  const contactEmail = currentUser?.email || customerProfile?.contactInformation?.email || '';
+  const contactAddress = customerProfile?.address
+    ? `${customerProfile.address.subcityOrZone}, ${customerProfile.address.city}`
+    : 'Addis Ababa, Ethiopia';
+
   const allPolicies = store.getPolicies().filter((p) => p.customerId === customerId);
   const allApplications = store.getApplications().filter((a) => a.customerId === customerId);
+  const allPayments = store.getPaymentAttempts().filter((p) => p.customerId === customerId);
+  const allClaims = store.getClaims().filter((c) => c.customerId === customerId);
   const products = store.getPublishedProducts();
   const [securityFeedback, setSecurityFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const isNewAppAction = initialAction === 'new_app' || initialAction === 'new-application';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'applications' | 'policies' | 'payments' | 'claims' | 'profile'>(
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'services' | 'applications' | 'policies' | 'payments' | 'claims' | 'profile'>(
     isNewAppAction ? 'applications' : 'dashboard'
   );
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [serviceCategory, setServiceCategory] = useState<string>('all');
+  const [inspectingProduct, setInspectingProduct] = useState<InsuranceProduct | null>(null);
+
+  // Sync user's real Firestore records when entering portal
+  useEffect(() => {
+    if (customerId) {
+      syncCustomerWorkspaceFromFirestore(customerId);
+    }
+  }, [customerId]);
 
   // New Application Wizard State
   const [isCreatingApp, setIsCreatingApp] = useState(isNewAppAction);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = useState(initialProductId || products[0]?.productId || '');
   const [appFormAnswers, setAppFormAnswers] = useState<Record<string, any>>({});
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; size: number; code: string }[]>([]);
@@ -70,12 +109,16 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   // Payment Checkout Modal State
   const [checkoutTarget, setCheckoutTarget] = useState<{
     applicationId: string;
+    productId: string;
     productName: string;
     amountETB: number;
     quotationId: string;
   } | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [selectedTestMethod, setSelectedTestMethod] = useState<'telebirr' | 'cbe_birr' | 'test_card'>('telebirr');
+  const [lastIssuedPolicy, setLastIssuedPolicy] = useState<InsurancePolicy | null>(null);
 
   // Claim form state
   const [isFilingClaim, setIsFilingClaim] = useState(false);
@@ -84,6 +127,32 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   const [claimDate, setClaimDate] = useState('');
   const [claimLossETB, setClaimLossETB] = useState('');
   const [claimSuccess, setClaimSuccess] = useState(false);
+
+  // Profile Edit State
+  const [profFirstName, setProfFirstName] = useState(currentUser?.firstName || '');
+  const [profLastName, setProfLastName] = useState(currentUser?.lastName || '');
+  const [profPhone, setProfPhone] = useState(contactPhone);
+  const [profCity, setProfCity] = useState(customerProfile?.address?.city || 'Addis Ababa');
+  const [profSubcity, setProfSubcity] = useState(customerProfile?.address?.subcityOrZone || 'Bole');
+  const [profLang, setProfLang] = useState<AppLanguage>(
+    customerProfile?.contactInformation?.preferredLanguage || language || 'english'
+  );
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileFeedback, setProfileFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!claimPolicyId && allPolicies.length > 0) {
+      setClaimPolicyId(allPolicies[0].policyId);
+    }
+  }, [allPolicies.length, claimPolicyId]);
+
+  useEffect(() => {
+    if (!profFirstName && currentUser?.firstName) setProfFirstName(currentUser.firstName);
+    if (!profLastName && currentUser?.lastName) setProfLastName(currentUser.lastName);
+    if (!profPhone && contactPhone) setProfPhone(contactPhone);
+    if (customerProfile?.address?.city) setProfCity(customerProfile.address.city);
+    if (customerProfile?.address?.subcityOrZone) setProfSubcity(customerProfile.address.subcityOrZone);
+  }, [currentUser?.uid, customerProfile?.updatedAt]);
 
   const selectedProduct = products.find((p) => p.productId === selectedProductId) || products[0];
 
@@ -97,94 +166,176 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
     }
   };
 
+  const handleFillSampleAnswers = () => {
+    if (!selectedProduct) return;
+    const sample: Record<string, any> = {};
+    const today = new Date().toISOString().split('T')[0];
+    selectedProduct.applicationSchema.forEach((step) => {
+      step.fields.forEach((f) => {
+        if (f.type === 'select' && f.options && f.options.length > 0) {
+          sample[f.id] = f.options[0].value;
+        } else if (f.type === 'boolean') {
+          sample[f.id] = true;
+        } else if (f.type === 'number') {
+          const lower = f.label.toLowerCase();
+          if (lower.includes('year')) sample[f.id] = 2022;
+          else if (lower.includes('seat') || lower.includes('passenger')) sample[f.id] = 5;
+          else if (lower.includes('age')) sample[f.id] = 32;
+          else if (lower.includes('employee') || lower.includes('staff')) sample[f.id] = 15;
+          else sample[f.id] = 1250000;
+        } else if (f.type === 'date') {
+          sample[f.id] = today;
+        } else if (f.type === 'textarea') {
+          sample[f.id] = `Test underwriting submission for ${selectedProduct.productName} in Addis Ababa (Bole Sub-City).`;
+        } else {
+          const lower = f.label.toLowerCase();
+          if (lower.includes('plate')) sample[f.id] = 'AA-2-B48291';
+          else if (lower.includes('chassis') || lower.includes('vin')) sample[f.id] = 'JTDKARFP4J3091827';
+          else if (lower.includes('engine')) sample[f.id] = '2ZR-FE-991824';
+          else if (lower.includes('make') || lower.includes('model')) sample[f.id] = 'Toyota Corolla Cross 2022';
+          else if (lower.includes('tin')) sample[f.id] = '0048291045';
+          else if (lower.includes('location') || lower.includes('address')) sample[f.id] = 'Bole Sub-City, Woreda 03, Addis Ababa';
+          else sample[f.id] = f.placeholder || `Sample ${f.label}`;
+        }
+      });
+    });
+    setAppFormAnswers(sample);
+  };
+
   const handleSaveDraft = () => {
-    const newAppId = `APP-${Date.now()}`;
+    if (!selectedProduct) return;
+    const now = new Date().toISOString();
+    const existingDraft = editingDraftId ? allApplications.find((a) => a.applicationId === editingDraftId) : undefined;
+    const newAppId = existingDraft?.applicationId || `APP-${Date.now()}`;
     const newApp: InsuranceApplication = {
       applicationId: newAppId,
-      applicationNumber: `AIC-APP-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      applicationNumber: existingDraft?.applicationNumber || `AIC-APP-2026-${Math.floor(1000 + Math.random() * 9000)}`,
       customerId,
-      customerName: `${currentUser?.firstName || 'Abebe'} ${currentUser?.lastName || 'Tadesse'}`,
+      customerName: fullDisplayName,
       productId: selectedProduct.productId,
       productName: selectedProduct.productName,
       productVersion: selectedProduct.version,
       applicantInformation: {
-        fullName: `${currentUser?.firstName || 'Abebe'} ${currentUser?.lastName || 'Tadesse'}`,
-        phone: currentUser?.phone || '+251 91 123 4567',
-        email: currentUser?.email || 'abebe.tadesse@example.et',
-        address: 'Bole Sub-City, Addis Ababa'
+        fullName: fullDisplayName,
+        phone: contactPhone || 'Pending Phone',
+        email: contactEmail,
+        address: contactAddress
       },
       applicationAnswers: appFormAnswers,
       uploadedDocumentIds: uploadedFiles.map((f) => `DOC-${f.code}`),
       applicationStatus: 'draft',
       branchId: 'BR-BOLE',
       registrationChannel: 'self_service',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: existingDraft?.createdAt || now,
+      updatedAt: now
     };
     store.saveApplication(newApp);
-    setAppSuccess('Draft application saved successfully. You can resume anytime.');
+    persistApplicationToFirestore(newApp).catch(() => {});
+    setEditingDraftId(null);
+    setAppSuccess('Draft saved! Resuming anytime from your Applications tab.');
     setTimeout(() => {
       setIsCreatingApp(false);
       setAppSuccess(null);
-    }, 1500);
+    }, 650);
   };
 
-  const handleSubmitApplication = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newAppId = `APP-${Date.now()}`;
-    const appNumber = `AIC-APP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+  const submitApplicationCore = (launchCheckoutImmediately: boolean) => {
+    if (!selectedProduct) return;
+    const now = new Date().toISOString();
+    const existingDraft = editingDraftId ? allApplications.find((a) => a.applicationId === editingDraftId) : undefined;
+    const newAppId = existingDraft?.applicationId || `APP-${Date.now()}`;
+    const appNumber = existingDraft?.applicationNumber || `AIC-APP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const quoteAmountETB = calculateProductQuoteETB(selectedProduct, appFormAnswers);
+    const quotationId = `QUO-AIC-${Date.now().toString().slice(-6)}`;
 
     const newApp: InsuranceApplication = {
       applicationId: newAppId,
       applicationNumber: appNumber,
       customerId,
-      customerName: `${currentUser?.firstName || 'Abebe'} ${currentUser?.lastName || 'Tadesse'}`,
+      customerName: fullDisplayName,
       productId: selectedProduct.productId,
       productName: selectedProduct.productName,
       productVersion: selectedProduct.version,
       applicantInformation: {
-        fullName: `${currentUser?.firstName || 'Abebe'} ${currentUser?.lastName || 'Tadesse'}`,
-        phone: currentUser?.phone || '+251 91 123 4567',
-        email: currentUser?.email || 'abebe.tadesse@example.et',
-        address: 'Bole Sub-City, Addis Ababa'
+        fullName: fullDisplayName,
+        phone: contactPhone || 'Pending Phone',
+        email: contactEmail,
+        address: contactAddress
       },
       applicationAnswers: appFormAnswers,
       uploadedDocumentIds: uploadedFiles.map((f) => `DOC-${f.code}`),
-      applicationStatus: 'submitted',
+      applicationStatus: 'quoted',
+      quotationId,
+      quotedAmountETB: quoteAmountETB,
       branchId: 'BR-BOLE',
       registrationChannel: 'self_service',
-      createdAt: new Date().toISOString(),
-      submittedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: existingDraft?.createdAt || now,
+      submittedAt: now,
+      updatedAt: now
     };
 
     store.saveApplication(newApp);
+    persistApplicationToFirestore(newApp).catch(() => {});
+    setEditingDraftId(null);
     store.logAudit({
       actorUid: currentUser?.uid || 'CUST',
-      actorName: `${currentUser?.firstName || 'Abebe'} ${currentUser?.lastName || 'Tadesse'}`,
+      actorName: fullDisplayName,
       actorRole: 'customer',
       action: 'APPLICATION_SUBMITTED',
       resourceType: 'application',
       resourceId: newAppId,
-      reason: `Application ${appNumber} submitted for ${selectedProduct.productName}`,
+      reason: `Application ${appNumber} quoted at ${quoteAmountETB.toLocaleString()} ETB for ${selectedProduct.productName}`,
       correlationId: `APP-SUBMIT-${Date.now()}`
     });
 
-    setAppSuccess(`Application ${appNumber} submitted! Our underwriting team will review your application.`);
+    if (launchCheckoutImmediately) {
+      setIsCreatingApp(false);
+      setAppSuccess(null);
+      setAppFormAnswers({});
+      setUploadedFiles([]);
+      setPaymentError(null);
+      setPaymentDone(false);
+      setLastIssuedPolicy(null);
+      setCheckoutTarget({
+        applicationId: newAppId,
+        productId: selectedProduct.productId,
+        productName: selectedProduct.productName,
+        amountETB: quoteAmountETB,
+        quotationId
+      });
+      return;
+    }
+
+    setAppSuccess(
+      `Application ${appNumber} quoted at ${quoteAmountETB.toLocaleString()} ETB — ready for Chapa Sandbox Checkout.`
+    );
     setTimeout(() => {
       setIsCreatingApp(false);
       setAppSuccess(null);
-    }, 2000);
+      setAppFormAnswers({});
+      setUploadedFiles([]);
+    }, 800);
   };
 
-  const handleSimulatePayment = async () => {
+  const handleSubmitApplication = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitApplicationCore(false);
+  };
+
+  const handleSimulatePayment = async (simulateFailure = false) => {
     if (!checkoutTarget) return;
     setIsProcessingPayment(true);
+    setPaymentError(null);
+
+    const targetProduct =
+      products.find((p) => p.productId === checkoutTarget.productId) || selectedProduct;
+    const targetApp = allApplications.find((a) => a.applicationId === checkoutTarget.applicationId);
 
     const payAttemptId = `PAY-${Date.now()}`;
     const txRef = `AIC-CHAPA-2026-${Date.now().toString().slice(-5)}`;
-    // Record payment attempt
-    store.createPaymentAttempt({
+    const now = new Date().toISOString();
+
+    const attemptRecord: PaymentAttempt = {
       paymentAttemptId: payAttemptId,
       customerId,
       applicationId: checkoutTarget.applicationId,
@@ -196,40 +347,63 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       paymentStatus: 'pending',
       idempotencyKey: `IDEMP-${txRef}`,
       verificationStatus: 'unverified',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
+      createdAt: now,
+      updatedAt: now
+    };
 
-    // Simulate Chapa server-to-server independent verification
-    const verifyRes = await chapaService.verifyPayment(txRef, checkoutTarget.amountETB);
+    store.createPaymentAttempt(attemptRecord);
+
+    // Chapa sandbox verification
+    const verifyRes = await chapaService.verifyPayment(txRef, checkoutTarget.amountETB, {
+      method: selectedTestMethod,
+      simulateFailure
+    });
 
     if (verifyRes.verified) {
       store.verifyPaymentAttempt(payAttemptId, true);
-      setPaymentDone(true);
-      setIsProcessingPayment(false);
+      const verifiedAttempt: PaymentAttempt = {
+        ...attemptRecord,
+        providerReference: verifyRes.providerReference,
+        paymentStatus: 'successful',
+        verificationStatus: 'verified_server',
+        verifiedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
 
-      // Auto-issue demonstration policy upon verified payment
       const vCode = `AIC-VRF-${Math.floor(1000 + Math.random() * 9000)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      const polNumber = `AIC/${selectedProduct.productCategory.slice(0, 3).toUpperCase()}/2026/${Math.floor(100000 + Math.random() * 900000)}`;
+      const catPrefix = (targetProduct?.productCategory || 'GEN').slice(0, 3).toUpperCase();
+      const polNumber = `AIC/${catPrefix}/2026/${Math.floor(100000 + Math.random() * 900000)}`;
+
+      const maskedName = fullDisplayName
+        .split(/\s+/)
+        .map((part) => (part.length > 1 ? `${part[0]}***` : part))
+        .join(' ');
+
+      const answerSummary = targetApp?.applicationAnswers
+        ? Object.values(targetApp.applicationAnswers)
+            .filter((v) => typeof v === 'string' && v.trim().length > 0)
+            .slice(0, 2)
+            .join(' · ')
+        : '';
 
       const newPolicy: InsurancePolicy = {
         policyId: `POL-${Date.now()}`,
         policyNumber: polNumber,
         verificationCode: vCode,
-        verificationCodeHash: 'sha256_placeholder_token',
+        verificationCodeHash: 'sha256_verified_token',
         customerId,
-        customerName: `${currentUser?.firstName || 'Abebe'} ${currentUser?.lastName || 'Tadesse'}`,
-        customerPhone: currentUser?.phone || '+251 91 123 4567',
-        maskedInsuredName: 'A*** T*** K***',
-        productId: selectedProduct.productId,
+        customerName: fullDisplayName,
+        customerPhone: contactPhone,
+        maskedInsuredName: maskedName || 'A***',
+        productId: targetProduct?.productId || checkoutTarget.productId,
         productName: checkoutTarget.productName,
-        productVersion: selectedProduct.version,
+        productVersion: targetProduct?.version || 1,
         applicationId: checkoutTarget.applicationId,
         quotationId: checkoutTarget.quotationId,
         paymentReference: verifyRes.providerReference,
-        insuredSubject: 'Private Vehicle / Property Schedule',
-        coverageSummary: selectedProduct.benefits,
-        exclusionsSummary: selectedProduct.exclusions.slice(0, 2),
+        insuredSubject: answerSummary || `${checkoutTarget.productName} Schedule`,
+        coverageSummary: targetProduct?.benefits || [],
+        exclusionsSummary: (targetProduct?.exclusions || []).slice(0, 2),
         totalPremiumETB: checkoutTarget.amountETB,
         currency: 'ETB',
         startDate: new Date().toISOString().split('T')[0],
@@ -237,22 +411,37 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
         policyStatus: 'active',
         policyDocumentId: `DOC-POL-${Date.now()}`,
         certificateDocumentId: `DOC-CERT-${Date.now()}`,
-        preparedBy: 'STAFF-UW-01',
-        reviewedBy: 'STAFF-UW-01',
-        approvedBy: 'STAFF-ADM-01',
-        digitalSignatureRef: `AIC-SIG-SHA256-${Date.now()}`,
+        preparedBy: 'AIC Digital Underwriting',
+        reviewedBy: 'AIC Underwriting Directorate',
+        approvedBy: 'AIC Issuing Authority',
+        digitalSignatureRef: `AIC-SIG-SHA256-${Date.now().toString().slice(-6)}`,
         issuedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
       store.issuePolicy(newPolicy);
+      persistPaymentAndPolicyToFirestore({
+        attempt: verifiedAttempt,
+        policy: newPolicy,
+        application: targetApp
+      }).catch(() => {});
+      setLastIssuedPolicy(newPolicy);
+      setPaymentDone(true);
+      setIsProcessingPayment(false);
+    } else {
+      store.verifyPaymentAttempt(payAttemptId, false);
+      setPaymentError(verifyRes.message || 'Simulated payment failed. You can retry with any sandbox method.');
+      setIsProcessingPayment(false);
     }
   };
 
   const handleFileClaim = (e: React.FormEvent) => {
     e.preventDefault();
     const pol = allPolicies.find((p) => p.policyId === claimPolicyId) || allPolicies[0];
+    if (!pol) return;
+
+    const now = new Date().toISOString();
     const newClaim: InsuranceClaim = {
       claimId: `CLM-${Date.now()}`,
       claimNumber: `AIC-CLM-2026-${Math.floor(100 + Math.random() * 900)}`,
@@ -260,16 +449,18 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       policyNumber: pol.policyNumber,
       customerId,
       customerName: pol.customerName,
-      incidentDate: claimDate || new Date().toISOString().split('T')[0],
-      incidentLocation: 'Addis Ababa',
+      incidentDate: claimDate || now.split('T')[0],
+      incidentLocation: contactAddress,
       description: claimDesc,
       estimatedLossETB: Number(claimLossETB) || 25000,
       uploadedEvidenceIds: ['DOC-EVID-01'],
       claimStatus: 'submitted',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: now,
+      updatedAt: now
     };
 
+    store.saveClaim(newClaim);
+    persistClaimToFirestore(newClaim).catch(() => {});
     store.logAudit({
       actorUid: customerId,
       actorName: pol.customerName,
@@ -277,7 +468,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       action: 'CLAIM_SUBMITTED',
       resourceType: 'policy',
       resourceId: pol.policyId,
-      reason: `Claim filed for ${pol.policyNumber} (Est: ${newClaim.estimatedLossETB} ETB)`,
+      reason: `Claim ${newClaim.claimNumber} filed for ${pol.policyNumber} (Est: ${newClaim.estimatedLossETB} ETB)`,
       correlationId: `CLM-${Date.now()}`
     });
 
@@ -287,7 +478,25 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       setClaimSuccess(false);
       setClaimDesc('');
       setClaimLossETB('');
-    }, 2000);
+    }, 900);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customerId) return;
+    setIsSavingProfile(true);
+    setProfileFeedback(null);
+    await updateCustomerProfileInFirestore(customerId, {
+      firstName: profFirstName,
+      lastName: profLastName,
+      phone: profPhone,
+      city: profCity,
+      subcity: profSubcity,
+      preferredLanguage: profLang
+    });
+    setLanguage(profLang);
+    setIsSavingProfile(false);
+    setProfileFeedback('Profile details updated and synced securely.');
   };
 
   return (
@@ -309,7 +518,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
           {/* Navigation Links */}
           <nav className="p-3 space-y-1 text-xs font-medium">
             <button
-              onClick={() => { setActiveTab('dashboard'); setIsCreatingApp(false); }}
+              onClick={() => { setActiveTab('dashboard'); setIsCreatingApp(false); setInspectingProduct(null); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
                 activeTab === 'dashboard' && !isCreatingApp ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
               }`}
@@ -319,7 +528,17 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             </button>
 
             <button
-              onClick={() => { setActiveTab('applications'); }}
+              onClick={() => { setActiveTab('services'); setIsCreatingApp(false); setInspectingProduct(null); }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                activeTab === 'services' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Briefcase className="w-4 h-4 text-[#c59b27]" />
+              <span>Services & Products ({products.length})</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('applications'); setInspectingProduct(null); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
                 activeTab === 'applications' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
               }`}
@@ -329,7 +548,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             </button>
 
             <button
-              onClick={() => { setActiveTab('policies'); setIsCreatingApp(false); }}
+              onClick={() => { setActiveTab('policies'); setIsCreatingApp(false); setInspectingProduct(null); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
                 activeTab === 'policies' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
               }`}
@@ -339,7 +558,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             </button>
 
             <button
-              onClick={() => { setActiveTab('payments'); setIsCreatingApp(false); }}
+              onClick={() => { setActiveTab('payments'); setIsCreatingApp(false); setInspectingProduct(null); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
                 activeTab === 'payments' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
               }`}
@@ -349,7 +568,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             </button>
 
             <button
-              onClick={() => { setActiveTab('claims'); setIsCreatingApp(false); }}
+              onClick={() => { setActiveTab('claims'); setIsCreatingApp(false); setInspectingProduct(null); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
                 activeTab === 'claims' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
               }`}
@@ -359,7 +578,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             </button>
 
             <button
-              onClick={() => { setActiveTab('profile'); setIsCreatingApp(false); }}
+              onClick={() => { setActiveTab('profile'); setIsCreatingApp(false); setInspectingProduct(null); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
                 activeTab === 'profile' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
               }`}
@@ -412,6 +631,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
         <div className="md:hidden -mx-3 px-3 pb-2.5 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto">
           {[
             { id: 'dashboard', label: 'Overview' },
+            { id: 'services', label: `Services (${products.length})` },
             { id: 'applications', label: `Applications (${allApplications.length})` },
             { id: 'policies', label: `Policies (${allPolicies.length})` },
             { id: 'payments', label: 'Payments' },
@@ -421,11 +641,13 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             <button
               key={item.id}
               type="button"
+              data-compact="true"
               onClick={() => {
                 setActiveTab(item.id as any);
                 setIsCreatingApp(false);
+                setInspectingProduct(null);
               }}
-              className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
+              className={`shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 activeTab === item.id && !isCreatingApp
                   ? 'bg-[#12366e] text-white'
                   : 'bg-white border border-slate-200 text-slate-700'
@@ -445,16 +667,17 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
               <span>Africa Insurance Company S.C.</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">
-              Welcome back, {currentUser?.firstName || 'Abebe'}
+              Welcome back, {currentUser?.firstName || fullDisplayName}
             </h1>
           </div>
 
           <button
             onClick={() => {
+              setInspectingProduct(null);
               setIsCreatingApp(true);
               setActiveTab('applications');
             }}
-            className="bg-[#12366e] hover:bg-[#1a4b8c] text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 shadow-sm shrink-0 self-start sm:self-auto"
+            className="bg-[#12366e] hover:bg-[#1a4b8c] text-white text-sm sm:text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 shadow-sm shrink-0 self-start sm:self-auto"
           >
             <Plus className="w-4 h-4 text-[#c59b27]" />
             <span>Apply for New Policy</span>
@@ -538,56 +761,256 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-xs text-slate-500">
-                  No active insurance policies yet. Click "Apply for New Policy" to begin.
+                <div className="text-center py-8 space-y-3 text-xs text-slate-500">
+                  <p>No active insurance policies yet. Explore AIC coverage plans or start a new application.</p>
+                  <div className="flex flex-wrap items-center justify-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('services')}
+                      className="bg-white border border-slate-300 hover:bg-slate-50 text-[#12366e] px-4 py-2 rounded-lg font-semibold cursor-pointer"
+                    >
+                      Browse Services & Products
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreatingApp(true);
+                        setActiveTab('applications');
+                      }}
+                      className="bg-[#12366e] text-white px-4 py-2 rounded-lg font-semibold cursor-pointer"
+                    >
+                      Apply for New Policy
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           </div>
         )}
 
+        {/* TAB 1B: IN-PORTAL SERVICES & PRODUCTS CATALOG OR FULL POLICY DETAIL PAGE */}
+        {activeTab === 'services' && !isCreatingApp && (
+          inspectingProduct ? (
+            <div key={`detail-${inspectingProduct.productId}`} className="aic-view-transition">
+              <ProductDetailPage
+                slug={inspectingProduct.slug}
+                navigate={navigate}
+                embedded
+                onBack={() => {
+                  setInspectingProduct(null);
+                  if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onApply={(chosenProductId) => {
+                  setInspectingProduct(null);
+                  setSelectedProductId(chosenProductId);
+                  setAppFormAnswers({});
+                  setEditingDraftId(null);
+                  setUploadedFiles([]);
+                  setIsCreatingApp(true);
+                  setActiveTab('applications');
+                  if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
+            </div>
+          ) : (
+          <div className="space-y-6">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-[#12366e]">
+                    AIC Insurance Services &amp; Products
+                  </h2>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Review full policy coverage, official policy wordings, exclusions, and required documents before applying.
+                  </p>
+                </div>
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-slate-400 absolute left-3 top-3 sm:top-2.5" />
+                  <input
+                    type="text"
+                    value={serviceSearch}
+                    onChange={(e) => setServiceSearch(e.target.value)}
+                    placeholder="Search policies or coverage..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 sm:pl-8 pr-3 py-2.5 sm:py-2 text-base sm:text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {[
+                  { id: 'all', label: 'All Lines' },
+                  { id: 'motor', label: 'Motor' },
+                  { id: 'property', label: 'Property & Fire' },
+                  { id: 'marine', label: 'Marine & Cargo' },
+                  { id: 'engineering', label: 'Engineering' },
+                  { id: 'liability', label: 'Liability' },
+                  { id: 'personal', label: 'Life & Health' },
+                  { id: 'business', label: 'Business' }
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    data-compact="true"
+                    onClick={() => setServiceCategory(cat.id)}
+                    className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                      serviceCategory === cat.id
+                        ? 'bg-[#12366e] text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              {products
+                .filter((p) => {
+                  const catMatch = serviceCategory === 'all' || p.productCategory === serviceCategory;
+                  const q = serviceSearch.trim().toLowerCase();
+                  const textMatch =
+                    !q ||
+                    p.productName.toLowerCase().includes(q) ||
+                    p.shortDescription.toLowerCase().includes(q) ||
+                    p.productCategory.toLowerCase().includes(q);
+                  return catMatch && textMatch;
+                })
+                .map((product) => (
+                  <div
+                    key={product.productId}
+                    className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between gap-4 hover:shadow-md transition-shadow"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-blue-50 text-[#12366e]">
+                          {product.productCategory}
+                        </span>
+                        <span className="text-[11px] font-mono font-semibold text-slate-700">
+                          From {product.quotationConfiguration.standardMinimumPremiumETB.toLocaleString()} ETB
+                        </span>
+                      </div>
+
+                      <div>
+                        <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                          {product.productName}
+                        </h3>
+                        <p className="text-xs text-slate-600 mt-1.5 line-clamp-2 leading-relaxed">
+                          {product.shortDescription}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Key Coverage Highlights
+                        </div>
+                        {product.benefits.slice(0, 3).map((b, idx) => (
+                          <div key={idx} className="flex items-start gap-1.5 text-[11px] text-slate-700">
+                            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                            <span className="line-clamp-1">{b}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInspectingProduct(product);
+                          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="flex-1 min-h-[44px] sm:min-h-0 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#12366e] text-base sm:text-xs font-semibold py-2.5 sm:py-2 px-3 rounded-lg transition-colors flex items-center justify-center cursor-pointer"
+                      >
+                        Policy Details
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedProductId(product.productId);
+                          setAppFormAnswers({});
+                          setEditingDraftId(null);
+                          setUploadedFiles([]);
+                          setIsCreatingApp(true);
+                          setActiveTab('applications');
+                          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="flex-1 min-h-[44px] sm:min-h-0 bg-[#12366e] hover:bg-[#0e2a58] text-white text-base sm:text-xs font-semibold py-2.5 sm:py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <span>Apply Now</span>
+                        <ArrowRight className="w-3.5 h-3.5 text-[#f0cb5a]" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+          )
+        )}
+
         {/* TAB 2: APPLICATIONS & DYNAMIC FORM INTAKE */}
         {activeTab === 'applications' && isCreatingApp && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-8 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h2 className="text-lg font-bold text-[#12366e]">New Insurance Policy Application</h2>
-                <p className="text-xs text-slate-500">Complete the product-specific questions and upload mandatory documents.</p>
+                <p className="text-xs text-slate-500">Complete the policy questions to calculate an instant ETB quote and buy in test mode.</p>
               </div>
-              <button
-                onClick={() => setIsCreatingApp(false)}
-                className="text-xs font-semibold text-slate-500 hover:text-slate-800"
-              >
-                Cancel
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  data-compact="true"
+                  onClick={handleFillSampleAnswers}
+                  className="bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+                >
+                  Quick-Fill Test Data
+                </button>
+                <button
+                  type="button"
+                  data-compact="true"
+                  onClick={() => setIsCreatingApp(false)}
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 px-2 py-1.5 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
 
             {appSuccess && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-center gap-2 font-semibold">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>{appSuccess}</span>
               </div>
             )}
 
-            {/* Product Selector */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Select Insurance Policy Offering
-              </label>
-              <select
-                value={selectedProductId}
-                onChange={(e) => {
-                  setSelectedProductId(e.target.value);
-                  setAppFormAnswers({});
-                }}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e]"
-              >
-                {products.map((p) => (
-                  <option key={p.productId} value={p.productId}>
-                    {p.productName} ({p.productCategory})
-                  </option>
-                ))}
-              </select>
+            {/* Product Selector + Instant Quote Preview */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
+              <div className="lg:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Select Insurance Policy Offering
+                </label>
+                <select
+                  value={selectedProductId}
+                  onChange={(e) => {
+                    setSelectedProductId(e.target.value);
+                    setAppFormAnswers({});
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 sm:py-2 text-base sm:text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e]"
+                >
+                  {products.map((p) => (
+                    <option key={p.productId} value={p.productId}>
+                      {p.productName} ({p.productCategory})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="bg-slate-900 text-white rounded-xl px-4 py-2.5 flex items-center justify-between">
+                <span className="text-[11px] text-slate-300 font-medium">Instant Quote (incl. VAT):</span>
+                <strong className="font-mono text-sm sm:text-base text-[#f0cb5a] tabular-nums">
+                  {calculateProductQuoteETB(selectedProduct, appFormAnswers).toLocaleString()} ETB
+                </strong>
+              </div>
             </div>
 
             {/* Product Policy Banner */}
@@ -704,22 +1127,32 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4">
+              <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <button
                   type="button"
                   onClick={handleSaveDraft}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors"
+                  className="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm sm:text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
                 >
                   Save Draft
                 </button>
 
-                <button
-                  type="submit"
-                  className="bg-[#12366e] hover:bg-[#0e2a58] text-white text-xs font-semibold px-6 py-2.5 rounded-lg transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <span>Submit Application to Underwriting</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-[#c59b27]" />
-                </button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                  <button
+                    type="submit"
+                    className="bg-white border border-[#12366e] text-[#12366e] hover:bg-blue-50 text-sm sm:text-xs font-semibold px-5 py-2.5 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Submit Application Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => submitApplicationCore(true)}
+                    className="bg-[#12366e] hover:bg-[#0e2a58] text-white text-sm sm:text-xs font-semibold px-6 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                  >
+                    <CreditCard className="w-4 h-4 text-[#c59b27]" />
+                    <span>Submit &amp; Buy Now (Test Mode)</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-[#c59b27]" />
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -762,21 +1195,43 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {app.applicationStatus === 'quoted' && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {app.applicationStatus === 'draft' && (
                         <button
+                          type="button"
                           onClick={() => {
+                            setEditingDraftId(app.applicationId);
+                            setSelectedProductId(app.productId);
+                            setAppFormAnswers(app.applicationAnswers || {});
+                            setIsCreatingApp(true);
+                          }}
+                          className="bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 font-semibold px-3.5 py-1.5 rounded-lg text-xs cursor-pointer"
+                        >
+                          Resume Draft
+                        </button>
+                      )}
+                      {(app.applicationStatus === 'quoted' || app.applicationStatus === 'submitted') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const matchedProduct = products.find((p) => p.productId === app.productId);
+                            const amount =
+                              app.quotedAmountETB ||
+                              (matchedProduct ? calculateProductQuoteETB(matchedProduct, app.applicationAnswers) : 5500);
                             setCheckoutTarget({
                               applicationId: app.applicationId,
+                              productId: app.productId,
                               productName: app.productName,
-                              amountETB: 85275,
-                              quotationId: app.quotationId || 'QUO-DEMO'
+                              amountETB: amount,
+                              quotationId: app.quotationId || `QUO-AIC-${app.applicationId.slice(-5)}`
                             });
                           }}
-                          className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5"
+                          className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 cursor-pointer"
                         >
                           <CreditCard className="w-3.5 h-3.5" />
-                          <span>Review & Pay via Chapa</span>
+                          <span>
+                            Pay {(app.quotedAmountETB || 5500).toLocaleString()} ETB via Chapa
+                          </span>
                         </button>
                       )}
                     </div>
@@ -852,8 +1307,8 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
               </p>
             </div>
 
-            <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-              <table className="w-full text-left">
+            <div className="border border-slate-200 rounded-xl overflow-x-auto text-xs">
+              <table className="w-full min-w-[540px] text-left">
                 <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                   <tr>
                     <th className="p-3">Reference</th>
@@ -864,19 +1319,27 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {store.getPaymentAttempts().map((p) => (
-                    <tr key={p.paymentAttemptId} className="hover:bg-slate-50">
-                      <td className="p-3 font-mono font-semibold text-slate-900">{p.merchantReference}</td>
-                      <td className="p-3">Chapa V2 (Hosted)</td>
-                      <td className="p-3 font-mono font-semibold tabular-nums">{p.amountETB.toLocaleString()} ETB</td>
-                      <td className="p-3">
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded uppercase">
-                          {p.paymentStatus}
-                        </span>
+                  {allPayments.length > 0 ? (
+                    allPayments.map((p) => (
+                      <tr key={p.paymentAttemptId} className="hover:bg-slate-50">
+                        <td className="p-3 font-mono font-semibold text-slate-900">{p.merchantReference}</td>
+                        <td className="p-3">Chapa V2 (Hosted)</td>
+                        <td className="p-3 font-mono font-semibold tabular-nums">{p.amountETB.toLocaleString()} ETB</td>
+                        <td className="p-3">
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded uppercase">
+                            {p.paymentStatus}
+                          </span>
+                        </td>
+                        <td className="p-3 text-slate-500">{p.createdAt.split('T')[0]}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="p-6 text-center text-slate-500">
+                        No payment transactions yet. Submit an insurance application to receive a quotation and complete payment via Chapa.
                       </td>
-                      <td className="p-3 text-slate-500">{p.createdAt.split('T')[0]}</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -908,14 +1371,31 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
               </div>
             )}
 
-            {isFilingClaim && (
+            {isFilingClaim && allPolicies.length === 0 && (
+              <div className="p-5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs space-y-3">
+                <p className="font-semibold">An active AIC insurance policy is required before filing a claim.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFilingClaim(false);
+                    setActiveTab('applications');
+                    setIsCreatingApp(true);
+                  }}
+                  className="bg-[#12366e] text-white px-4 py-2 rounded-lg font-semibold cursor-pointer"
+                >
+                  Apply for a Policy First
+                </button>
+              </div>
+            )}
+
+            {isFilingClaim && allPolicies.length > 0 && (
               <form onSubmit={handleFileClaim} className="space-y-4 text-xs bg-slate-50 p-5 rounded-xl border border-slate-200">
                 <h4 className="font-bold text-slate-900">Incident Notification Details</h4>
 
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Select Active Policy</label>
                   <select
-                    value={claimPolicyId}
+                    value={claimPolicyId || allPolicies[0]?.policyId || ''}
                     onChange={(e) => setClaimPolicyId(e.target.value)}
                     className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900"
                   >
@@ -965,11 +1445,37 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
 
                 <button
                   type="submit"
-                  className="bg-[#12366e] text-white text-xs font-semibold px-5 py-2.5 rounded-lg"
+                  className="bg-[#12366e] text-white text-xs font-semibold px-5 py-2.5 rounded-lg cursor-pointer"
                 >
                   Submit Formal Claim
                 </button>
               </form>
+            )}
+
+            {/* Filed Claims List */}
+            {allClaims.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Submitted Claims History</h4>
+                {allClaims.map((clm) => (
+                  <div key={clm.claimId} className="border border-slate-200 rounded-xl p-4 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-[#12366e]">{clm.claimNumber}</span>
+                        <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+                          {clm.claimStatus}
+                        </span>
+                      </div>
+                      <div className="text-slate-600">
+                        Policy: <span className="font-mono">{clm.policyNumber}</span> · Incident: {clm.incidentDate}
+                      </div>
+                      <p className="text-slate-700">{clm.description}</p>
+                    </div>
+                    <div className="font-mono font-bold text-slate-900 shrink-0">
+                      Est. {clm.estimatedLossETB.toLocaleString()} ETB
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
 
             <div className="text-xs text-slate-600 space-y-2">
@@ -986,27 +1492,96 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
               Customer Identity & Consent Settings
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-slate-700">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-slate-400 block text-[11px]">Customer Full Name</span>
-                <strong className="text-slate-900 mt-1 block">{currentUser?.firstName} {currentUser?.lastName}</strong>
+            {profileFeedback && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-medium flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{profileFeedback}</span>
               </div>
+            )}
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-slate-400 block text-[11px]">Primary Telephone</span>
-                <strong className="text-slate-900 mt-1 block font-mono">{currentUser?.phone}</strong>
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-slate-700">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">First Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={profFirstName}
+                    onChange={(e) => setProfFirstName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e]"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={profLastName}
+                    onChange={(e) => setProfLastName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e]"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Primary Telephone</label>
+                  <input
+                    type="tel"
+                    value={profPhone}
+                    onChange={(e) => setProfPhone(e.target.value)}
+                    placeholder="+251 91 123 4567"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-[#12366e]"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Electronic Mail (Verified Identity)</label>
+                  <input
+                    type="email"
+                    disabled
+                    value={contactEmail}
+                    className="w-full bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">City / Region</label>
+                  <input
+                    type="text"
+                    value={profCity}
+                    onChange={(e) => setProfCity(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e]"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Sub-City / Preferred Language</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={profSubcity}
+                      onChange={(e) => setProfSubcity(e.target.value)}
+                      placeholder="Sub-city"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e]"
+                    />
+                    <select
+                      value={profLang}
+                      onChange={(e) => setProfLang(e.target.value as AppLanguage)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e]"
+                    >
+                      <option value="english">English</option>
+                      <option value="amharic">አማርኛ</option>
+                      <option value="tigrinya">ትግርኛ</option>
+                      <option value="oromo">Afaan Oromoo</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-slate-400 block text-[11px]">Electronic Mail</span>
-                <strong className="text-slate-900 mt-1 block font-mono">{currentUser?.email}</strong>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isSavingProfile}
+                  className="bg-[#12366e] hover:bg-[#0e2a58] text-white font-semibold px-4 py-2 rounded-lg text-xs cursor-pointer disabled:opacity-60"
+                >
+                  {isSavingProfile ? 'Saving...' : 'Save Profile Changes'}
+                </button>
               </div>
-
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-slate-400 block text-[11px]">Assigned Servicing Branch</span>
-                <strong className="text-slate-900 mt-1 block">Bole Commercial Branch (Addis Ababa)</strong>
-              </div>
-            </div>
+            </form>
 
             <div className="pt-4 border-t border-slate-100 space-y-3">
               <h4 className="font-semibold text-slate-900">Linked Authentication &amp; Account Security</h4>
@@ -1181,10 +1756,32 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
               </div>
             </div>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-wrap justify-end gap-2.5">
               <button
+                type="button"
+                onClick={() => {
+                  const verifyCode = viewingPolicy.verificationCode;
+                  setViewingPolicy(null);
+                  navigate(`/verify-policy?code=${encodeURIComponent(verifyCode)}`);
+                }}
+                className="bg-white border border-slate-300 hover:bg-slate-50 text-[#12366e] px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Verify Live Code
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') window.print();
+                }}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Print / Save PDF</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setViewingPolicy(null)}
-                className="bg-[#12366e] text-white px-5 py-2 rounded-lg text-xs font-semibold"
+                className="bg-[#12366e] text-white px-5 py-2 rounded-lg text-xs font-semibold cursor-pointer"
               >
                 Close Certificate
               </button>
@@ -1195,67 +1792,158 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
 
       {/* CHAPA PAYMENT CHECKOUT MODAL */}
       {checkoutTarget && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-300 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-6">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white border border-slate-300 rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-[#12366e]" />
-                <h3 className="text-base font-bold text-[#12366e]">Chapa V2 Hosted Checkout</h3>
+                <div>
+                  <h3 className="text-base font-bold text-[#12366e] leading-tight">Chapa V2 Sandbox Checkout</h3>
+                  <span className="text-[11px] text-emerald-700 font-semibold">Test Mode · No Real Money Charged</span>
+                </div>
               </div>
               {!isProcessingPayment && (
-                <button onClick={() => setCheckoutTarget(null)} className="text-slate-400 font-bold">✕</button>
+                <button
+                  type="button"
+                  data-compact="true"
+                  aria-label="Close checkout modal"
+                  onClick={() => setCheckoutTarget(null)}
+                  className="text-slate-400 hover:text-slate-700 font-bold px-2 py-1 cursor-pointer"
+                >
+                  ✕
+                </button>
               )}
             </div>
 
-            {paymentDone ? (
-              <div className="text-center py-6 space-y-3">
+            {paymentDone && lastIssuedPolicy ? (
+              <div className="text-center py-3 space-y-4">
                 <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-                <h4 className="text-base font-bold text-slate-900">Payment Verified!</h4>
-                <p className="text-xs text-slate-600">
-                  Chapa server-to-server independent verification successful. Your official E-Policy has been generated and issued into the registry!
-                </p>
-                <button
-                  onClick={() => {
-                    setCheckoutTarget(null);
-                    setPaymentDone(false);
-                    setActiveTab('policies');
-                  }}
-                  className="mt-2 bg-[#12366e] text-white px-5 py-2 rounded-lg text-xs font-semibold"
-                >
-                  View Issued Policy
-                </button>
+                <div>
+                  <h4 className="text-base font-bold text-slate-900">Payment Verified &amp; E-Policy Issued!</h4>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Chapa sandbox verification succeeded and your live AIC policy has been synced to the registry.
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-left text-xs space-y-1.5">
+                  <div className="flex justify-between gap-2">
+                    <span className="text-slate-500">Policy Number:</span>
+                    <strong className="font-mono text-slate-900">{lastIssuedPolicy.policyNumber}</strong>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-slate-500">Verification Code:</span>
+                    <strong className="font-mono text-[#12366e]">{lastIssuedPolicy.verificationCode}</strong>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-slate-500">Amount Settled:</span>
+                    <strong className="font-mono text-emerald-700">{lastIssuedPolicy.totalPremiumETB.toLocaleString()} ETB</strong>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const issued = lastIssuedPolicy;
+                      setCheckoutTarget(null);
+                      setPaymentDone(false);
+                      setActiveTab('policies');
+                      setViewingPolicy(issued);
+                    }}
+                    className="flex-1 bg-[#12366e] hover:bg-[#0e2a58] text-white px-4 py-2.5 rounded-lg text-sm sm:text-xs font-semibold cursor-pointer"
+                  >
+                    View E-Policy Certificate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const vCode = lastIssuedPolicy.verificationCode;
+                      setCheckoutTarget(null);
+                      setPaymentDone(false);
+                      navigate(`/verify-policy?code=${encodeURIComponent(vCode)}`);
+                    }}
+                    className="flex-1 bg-white border border-slate-300 hover:bg-slate-50 text-[#12366e] px-4 py-2.5 rounded-lg text-sm sm:text-xs font-semibold cursor-pointer"
+                  >
+                    Verify Code Live
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-4 text-xs">
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-2">
                     <span className="text-slate-500">Product:</span>
-                    <strong className="text-slate-900">{checkoutTarget.productName}</strong>
+                    <strong className="text-slate-900 text-right">{checkoutTarget.productName}</strong>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Premium Payable:</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-slate-500">Test Premium (incl. VAT):</span>
                     <strong className="font-mono text-base text-slate-900 tabular-nums">
                       {checkoutTarget.amountETB.toLocaleString()} ETB
                     </strong>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Provider:</span>
-                    <span className="text-slate-700">Chapa (V2 Sandbox)</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-slate-500">Quotation Ref:</span>
+                    <span className="font-mono text-slate-700">{checkoutTarget.quotationId}</span>
                   </div>
                 </div>
 
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-[11px] leading-relaxed">
-                  <strong>Sandbox Integration:</strong> In accordance with project rules, real payment secrets are not exposed to the browser. Click below to execute independent server verification.
+                {/* Test Payment Method Selector */}
+                <div className="space-y-1.5">
+                  <span className="block font-semibold text-slate-700">Select Sandbox Test Payment Channel:</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'telebirr', label: 'Telebirr' },
+                      { id: 'cbe_birr', label: 'CBE Birr' },
+                      { id: 'test_card', label: 'Test Card' }
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        data-compact="true"
+                        onClick={() => setSelectedTestMethod(m.id as any)}
+                        className={`py-2 px-2 rounded-lg border text-xs font-semibold transition-colors cursor-pointer ${
+                          selectedTestMethod === m.id
+                            ? 'bg-[#12366e] text-white border-[#12366e]'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <button
-                  onClick={handleSimulatePayment}
-                  disabled={isProcessingPayment}
-                  className="w-full bg-[#12366e] hover:bg-[#0e2a58] text-white py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
-                >
-                  <CreditCard className="w-4 h-4 text-[#c59b27]" />
-                  <span>{isProcessingPayment ? 'Verifying with Chapa Gateway...' : `Pay ${checkoutTarget.amountETB.toLocaleString()} ETB Now`}</span>
-                </button>
+                {paymentError && (
+                  <div role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 font-medium">
+                    {paymentError}
+                  </div>
+                )}
+
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-[11px] leading-relaxed">
+                  <strong>QA Test Mode Active:</strong> Testers can mock payment approvals or declined cards safely with zero real charges.
+                </div>
+
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSimulatePayment(false)}
+                    disabled={isProcessingPayment}
+                    className="w-full bg-[#12366e] hover:bg-[#0e2a58] text-white py-3 rounded-xl font-semibold text-sm sm:text-xs transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    <CreditCard className="w-4 h-4 text-[#c59b27]" />
+                    <span>{isProcessingPayment ? 'Verifying Sandbox Payment...' : `Approve Mock Payment (${checkoutTarget.amountETB.toLocaleString()} ETB)`}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    data-compact="true"
+                    onClick={() => handleSimulatePayment(true)}
+                    disabled={isProcessingPayment}
+                    className="w-full py-1.5 text-[11px] font-semibold text-slate-500 hover:text-rose-700 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    Test Failed / Declined Payment Scenario
+                  </button>
+                </div>
               </div>
             )}
           </div>

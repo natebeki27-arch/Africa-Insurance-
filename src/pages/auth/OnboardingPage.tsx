@@ -49,9 +49,15 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ navigate, redire
   useEffect(() => {
     if (!currentUser) {
       navigate('/login');
-    } else if (currentUser.onboardingStatus === 'complete') {
-      navigate(redirectRoute || '/portal');
+      return;
     }
+    if (currentUser.onboardingStatus === 'complete') {
+      navigate(redirectRoute || '/portal');
+      return;
+    }
+    if (!firstName && currentUser.firstName) setFirstName(currentUser.firstName);
+    if (!lastName && currentUser.lastName) setLastName(currentUser.lastName);
+    if (!phone && currentUser.phone) setPhone(currentUser.phone);
   }, [currentUser, redirectRoute, navigate]);
 
   if (!currentUser) return null;

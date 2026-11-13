@@ -2,6 +2,12 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
   :root {
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
@@ -18,10 +24,13 @@
 
   html {
     font-family: var(--font-sans);
+    font-size: 16px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
     font-feature-settings: 'cv02' 1, 'cv03' 1, 'cv04' 1, 'cv11' 1;
+    max-width: 100%;
     overflow-x: hidden;
   }
 
@@ -29,52 +38,61 @@
     font-family: var(--font-sans);
     color: #0f172a;
     background-color: #f8fafc;
-    font-size: 0.875rem; /* Mobile-first compact baseline */
+    font-size: clamp(0.875rem, 0.85rem + 0.25vw, 0.9375rem);
     line-height: 1.55;
     letter-spacing: -0.011em;
+    max-width: 100%;
     overflow-x: hidden;
   }
 
-  @media (min-width: 640px) {
+  @media (min-width: 768px) {
     body {
       font-size: 0.9375rem;
       line-height: 1.6;
     }
   }
 
+  img,
+  svg,
+  video,
+  canvas,
+  iframe {
+    max-width: 100%;
+  }
+
   /* -------------------------------------------------------------
      LOOM & ANTIGRAVITY ENTERPRISE TYPOGRAPHY SCALE (Mobile-First)
-     Disciplined hierarchy, tight negative tracking, balanced leading
+     Relative rem & clamp() scaling cleanly to small phone viewports
      ------------------------------------------------------------- */
   h1, .h1 {
     font-family: var(--font-display);
-    font-size: clamp(1.5rem, 3.5vw + 0.75rem, 3.25rem);
+    font-size: clamp(1.375rem, 3.2vw + 0.75rem, 3.25rem);
     letter-spacing: -0.03em;
     font-weight: 700;
-    line-height: 1.12;
+    line-height: 1.14;
     text-wrap: balance;
   }
 
   h2, .h2 {
     font-family: var(--font-display);
-    font-size: clamp(1.375rem, 2.5vw + 0.5rem, 2.25rem);
+    font-size: clamp(1.2rem, 2.2vw + 0.5rem, 2.25rem);
     letter-spacing: -0.025em;
     font-weight: 700;
-    line-height: 1.18;
+    line-height: 1.2;
     text-wrap: balance;
   }
 
   h3, .h3 {
     font-family: var(--font-display);
-    font-size: clamp(1.125rem, 1.5vw + 0.25rem, 1.5rem);
+    font-size: clamp(1.0625rem, 1.4vw + 0.25rem, 1.5rem);
     letter-spacing: -0.02em;
     font-weight: 600;
-    line-height: 1.25;
+    line-height: 1.28;
   }
 
   h4, .h4 {
     font-family: var(--font-display);
-    font-size: 1.125rem;
+    font-size: clamp(0.95rem, 0.9rem + 0.35vw, 1.125rem);
     letter-spacing: -0.015em;
     font-weight: 600;
     line-height: 1.35;
@@ -96,7 +114,7 @@
     line-height: 1.45;
   }
 
-  /* Strict Enterprise UI Elements Typography */
+  /* Strict Enterprise UI Elements Typography & Box Sizing */
   button,
   input,
   select,
@@ -113,6 +131,31 @@
     font-family: var(--font-sans);
     letter-spacing: -0.01em;
     font-feature-settings: 'cv02' 1, 'cv11' 1;
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+}
+
+/* -------------------------------------------------------------
+   MOBILE-FIRST FORM & TOUCH ERGONOMICS (< 768px ONLY)
+   Enforces box-sizing: border-box, max-width: 100%, and min 16px
+   on mobile inputs & buttons to prevent iOS/Android auto-zoom,
+   while preserving original full-scale layout on desktop monitors.
+   ------------------------------------------------------------- */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    box-sizing: border-box;
+    max-width: 100%;
+    font-size: max(1rem, 16px);
+  }
+
+  button:not([data-compact="true"]):not([aria-label*="password"]):not([aria-label*="Close"]):not([aria-label*="Toggle"]),
+  [role="button"]:not([data-compact="true"]) {
+    box-sizing: border-box;
+    max-width: 100%;
+    font-size: max(1rem, 16px);
   }
 }
 
@@ -158,4 +201,5 @@
     animation: none;
   }
 }
+
 

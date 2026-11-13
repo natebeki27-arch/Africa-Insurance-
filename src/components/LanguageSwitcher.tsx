@@ -25,6 +25,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
           <button
             key={opt.code}
             type="button"
+            data-compact="true"
             onClick={() => handleChange(opt.code)}
             className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
               language === opt.code

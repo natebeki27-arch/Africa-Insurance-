@@ -4,8 +4,12 @@ import {
   signInWithEmail,
   sendResetPasswordEmail,
   linkGoogleAccountToCurrentUser,
-  getDestinationForAccount
+  getDestinationForAccount,
+  isPermissionDeniedError,
+  refreshAuthSessionToken,
+  AuthHandshakeStage
 } from '../../services/authService';
+import { AuthHandshakeTracker } from '../../components/AuthHandshakeTracker';
 import { store } from '../../services/store';
 import { useLanguage } from '../../i18n/LanguageContext';
 import {
@@ -17,6 +21,7 @@ import {
   Eye,
   EyeOff,
   ArrowLeft,
+  ArrowRight,
   RefreshCw,
   X
 } from 'lucide-react';
@@ -48,68 +53,192 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate, redirectRoute })
   // Legal modal state
   const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null);
 
+  const [isAutoRetrying, setIsAutoRetrying] = useState(false);
+  const [handshakeStage, setHandshakeStage] = useState<AuthHandshakeStage>('idle');
+  const [handshakeProvider, setHandshakeProvider] = useState<'google' | 'email'>('google');
+  const [isTimeoutWarning, setIsTimeoutWarning] = useState(false);
+
   useEffect(() => {
     if (currentUser) {
       navigate(getDestinationForAccount(currentUser, redirectRoute));
     }
   }, [currentUser, redirectRoute, navigate]);
 
-  const isBusy = isGoogleLoading || isEmailLoading || isResetLoading;
+  const isBusy = isGoogleLoading || isEmailLoading || isResetLoading || isAutoRetrying;
 
-  const handleGoogleSignIn = async () => {
-    if (isBusy) return;
+  const resetHandshakeState = () => {
+    setIsGoogleLoading(false);
+    setIsEmailLoading(false);
+    setIsAutoRetrying(false);
+    setHandshakeStage('idle');
+    setIsTimeoutWarning(false);
+  };
+
+  const isPermissionIssue = (code?: string | null, message?: string | null) =>
+    code === 'permission-denied' ||
+    code === 'auth/permission-denied' ||
+    /missing or insufficient permissions/i.test(message || '');
+
+  const handleGoogleSignIn = async (isAutoRetry = false) => {
+    if (isBusy && !isAutoRetry) return;
     setErrorMessage(null);
     setErrorCode(null);
-    setSuccessMessage(null);
+    if (!isAutoRetry) setSuccessMessage(null);
+    setHandshakeProvider('google');
+    setIsTimeoutWarning(false);
+    setHandshakeStage('opening_provider');
     setIsGoogleLoading(true);
 
-    const result = await signInWithGoogle(redirectRoute);
-    if (result.redirectInitiated) {
-      // Browser is redirecting to Google's OAuth screen
-      return;
-    }
+    try {
+      const result = await signInWithGoogle(redirectRoute, (stage, timedOut) => {
+        setHandshakeStage(stage);
+        if (timedOut) setIsTimeoutWarning(true);
+      });
+      if (result.redirectInitiated) {
+        return;
+      }
 
-    setIsGoogleLoading(false);
-    if (result.success && result.destination) {
-      setSuccessMessage('Signed in successfully. Redirecting to your AIC workspace...');
-      navigate(result.destination);
-    } else {
-      setErrorCode(result.errorCode || null);
-      setErrorMessage(result.errorMessage || 'Unable to complete Google sign-in.');
+      if (result.success && result.destination) {
+        setIsAutoRetrying(false);
+        setIsGoogleLoading(false);
+        setHandshakeStage('ready');
+        setIsTimeoutWarning(false);
+        setSuccessMessage('Signed in successfully. Redirecting to your AIC workspace...');
+        navigate(result.destination);
+        return;
+      }
+
+      if (!isAutoRetry && isPermissionIssue(result.errorCode, result.errorMessage)) {
+        setIsAutoRetrying(true);
+        setHandshakeStage('refreshing_token');
+        setSuccessMessage('Missing or insufficient permissions detected — refreshing session and retrying automatically...');
+        await refreshAuthSessionToken();
+        await new Promise((r) => setTimeout(r, 700));
+        await handleGoogleSignIn(true);
+        return;
+      }
+
+      resetHandshakeState();
+      setErrorCode(
+        isPermissionIssue(result.errorCode, result.errorMessage)
+          ? 'permission-denied'
+          : result.errorCode || null
+      );
+      setErrorMessage(
+        isPermissionIssue(result.errorCode, result.errorMessage)
+          ? 'Missing or insufficient permissions. If the domain configuration or security rules were recently updated in Firebase, please re-authenticate with your Google account below.'
+          : result.errorMessage || 'Unable to complete Google sign-in.'
+      );
       if (result.conflictEmail) {
         setConflictEmail(result.conflictEmail);
         setEmail(result.conflictEmail);
       }
+    } catch (err: any) {
+      if (!isAutoRetry && isPermissionDeniedError(err)) {
+        setIsAutoRetrying(true);
+        setHandshakeStage('refreshing_token');
+        setSuccessMessage('Missing or insufficient permissions detected — refreshing session and retrying automatically...');
+        await refreshAuthSessionToken();
+        await new Promise((r) => setTimeout(r, 700));
+        await handleGoogleSignIn(true);
+        return;
+      }
+      resetHandshakeState();
+      const permErr = isPermissionDeniedError(err);
+      setErrorCode(permErr ? 'permission-denied' : err?.code || 'auth/unknown');
+      setErrorMessage(
+        permErr
+          ? 'Missing or insufficient permissions. If the domain configuration or security rules were recently updated in Firebase, please re-authenticate below.'
+          : err?.message || 'Unable to complete Google sign-in.'
+      );
+    }
+  };
+
+  const runEmailSignInWithRetry = async (isAutoRetry = false) => {
+    if (!isAutoRetry) {
+      setErrorMessage(null);
+      setErrorCode(null);
+      setSuccessMessage(null);
+    }
+    setHandshakeProvider('email');
+    setIsTimeoutWarning(false);
+    setHandshakeStage('verifying_credentials');
+    setIsEmailLoading(true);
+
+    try {
+      const result = await signInWithEmail(email, password, redirectRoute, (stage, timedOut) => {
+        setHandshakeStage(stage);
+        if (timedOut) setIsTimeoutWarning(true);
+      });
+
+      if (result.success && result.destination) {
+        if (conflictEmail && result.userAccount && !result.userAccount.authProviders?.includes('google.com')) {
+          const linkRes = await linkGoogleAccountToCurrentUser();
+          if (linkRes.success) {
+            setIsAutoRetrying(false);
+            setIsEmailLoading(false);
+            setHandshakeStage('ready');
+            setIsTimeoutWarning(false);
+            setSuccessMessage('Signed in and linked your Google account securely.');
+            navigate(linkRes.destination || result.destination);
+            return;
+          }
+        }
+        setIsAutoRetrying(false);
+        setIsEmailLoading(false);
+        setHandshakeStage('ready');
+        setIsTimeoutWarning(false);
+        setSuccessMessage('Signed in successfully. Opening your AIC account...');
+        navigate(result.destination);
+        return;
+      }
+
+      if (!isAutoRetry && isPermissionIssue(result.errorCode, result.errorMessage)) {
+        setIsAutoRetrying(true);
+        setHandshakeStage('refreshing_token');
+        setSuccessMessage('Missing or insufficient permissions detected — refreshing session and retrying automatically...');
+        await refreshAuthSessionToken();
+        await new Promise((r) => setTimeout(r, 700));
+        await runEmailSignInWithRetry(true);
+        return;
+      }
+
+      resetHandshakeState();
+      setErrorCode(
+        isPermissionIssue(result.errorCode, result.errorMessage)
+          ? 'permission-denied'
+          : result.errorCode || null
+      );
+      setErrorMessage(
+        isPermissionIssue(result.errorCode, result.errorMessage)
+          ? 'Missing or insufficient permissions. If the domain configuration was recently updated in Firebase, please re-authenticate below.'
+          : result.errorMessage || 'Invalid email or password.'
+      );
+    } catch (err: any) {
+      if (!isAutoRetry && isPermissionDeniedError(err)) {
+        setIsAutoRetrying(true);
+        setHandshakeStage('refreshing_token');
+        setSuccessMessage('Missing or insufficient permissions detected — refreshing session and retrying automatically...');
+        await refreshAuthSessionToken();
+        await new Promise((r) => setTimeout(r, 700));
+        await runEmailSignInWithRetry(true);
+        return;
+      }
+      resetHandshakeState();
+      const permErr = isPermissionDeniedError(err);
+      setErrorCode(permErr ? 'permission-denied' : err?.code || 'auth/unknown');
+      setErrorMessage(
+        permErr
+          ? 'Missing or insufficient permissions. If the domain configuration was recently updated in Firebase, please re-authenticate below.'
+          : err?.message || 'Sign-in failed. Please try again.'
+      );
     }
   };
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isBusy) return;
-    setErrorMessage(null);
-    setErrorCode(null);
-    setSuccessMessage(null);
-    setIsEmailLoading(true);
-
-    const result = await signInWithEmail(email, password, redirectRoute);
-    setIsEmailLoading(false);
-
-    if (result.success && result.destination) {
-      // If there was a pending Google credential collision, offer linking
-      if (conflictEmail && result.userAccount && !result.userAccount.authProviders?.includes('google.com')) {
-        const linkRes = await linkGoogleAccountToCurrentUser();
-        if (linkRes.success) {
-          setSuccessMessage('Signed in and linked your Google account securely.');
-          navigate(linkRes.destination || result.destination);
-          return;
-        }
-      }
-      setSuccessMessage('Signed in successfully. Opening your AIC account...');
-      navigate(result.destination);
-    } else {
-      setErrorCode(result.errorCode || null);
-      setErrorMessage(result.errorMessage || 'Invalid email or password.');
-    }
+    await runEmailSignInWithRetry(false);
   };
 
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
@@ -161,16 +290,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate, redirectRoute })
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
             <div className="flex-1 space-y-1.5">
               <p className="leading-relaxed font-medium">{errorMessage}</p>
-              {(errorCode === 'auth/network-request-failed' || errorCode === 'auth/popup-closed-by-user') && (
+              {(errorCode === 'auth/network-request-failed' ||
+                errorCode === 'auth/popup-closed-by-user' ||
+                errorCode === 'permission-denied') && (
                 <button
                   type="button"
-                  onClick={handleGoogleSignIn}
-                  className="inline-flex items-center gap-1 font-semibold text-rose-900 underline hover:text-rose-700 cursor-pointer"
+                  onClick={() => handleGoogleSignIn(false)}
+                  className="inline-flex items-center gap-1.5 bg-rose-900 hover:bg-rose-800 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer"
                 >
                   <RefreshCw className="w-3 h-3" />
-                  <span>Try again</span>
+                  <span>
+                    {errorCode === 'permission-denied' ? 'Re-Authenticate Now' : 'Try again'}
+                  </span>
                 </button>
               )}
+              {errorCode === 'auth/unauthorized-domain' &&
+                typeof window !== 'undefined' &&
+                window.location.hostname.endsWith('.vercel.app') &&
+                window.location.hostname !== 'africa-insurance.vercel.app' && (
+                  <a
+                    href="https://africa-insurance.vercel.app/#/login"
+                    className="inline-flex items-center gap-1.5 bg-[#12366e] hover:bg-[#0e2a58] text-white px-3 py-1.5 rounded-lg font-semibold transition-colors"
+                  >
+                    <span>Open Authorized Domain (africa-insurance.vercel.app)</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </a>
+                )}
             </div>
           </div>
         )}
@@ -185,13 +330,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate, redirectRoute })
           </div>
         )}
 
+        <AuthHandshakeTracker
+          stage={handshakeStage}
+          isTimeoutWarning={isTimeoutWarning}
+          isAutoRetrying={isAutoRetrying}
+          providerLabel={handshakeProvider}
+          onDismissTimeout={resetHandshakeState}
+        />
+
         {!showForgotPassword ? (
           <>
             {/* Official Google Sign-In Button */}
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={handleGoogleSignIn}
+                onClick={() => handleGoogleSignIn(false)}
                 disabled={isBusy}
                 aria-label="Continue with Google"
                 className="w-full bg-white hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#12366e] focus-visible:ring-offset-2 border border-slate-300 hover:border-slate-400 text-slate-800 font-semibold py-3 px-4 rounded-xl text-sm transition-all shadow-sm flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
@@ -246,7 +399,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate, redirectRoute })
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#12366e]/20 focus:border-[#12366e]"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-base sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#12366e]/20 focus:border-[#12366e]"
                 />
               </div>
 
@@ -257,6 +410,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate, redirectRoute })
                   </label>
                   <button
                     type="button"
+                    data-compact="true"
                     onClick={() => {
                       setResetEmail(email);
                       setShowForgotPassword(true);
@@ -276,13 +430,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate, redirectRoute })
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 pr-10 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#12366e]/20 focus:border-[#12366e]"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 pr-10 text-base sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#12366e]/20 focus:border-[#12366e]"
                   />
                   <button
                     type="button"
+                    data-compact="true"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -292,7 +447,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate, redirectRoute })
               <button
                 type="submit"
                 disabled={isBusy}
-                className="w-full bg-[#12366e] hover:bg-[#0e2a58] text-white py-3 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full bg-[#12366e] hover:bg-[#0e2a58] text-white py-3 rounded-xl text-base sm:text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isEmailLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin text-[#c59b27]" />
@@ -308,6 +463,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate, redirectRoute })
           <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 text-xs">
             <button
               type="button"
+              data-compact="true"
               onClick={() => setShowForgotPassword(false)}
               className="inline-flex items-center gap-1.5 text-slate-600 hover:text-[#12366e] font-semibold cursor-pointer"
             >
@@ -331,7 +487,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate, redirectRoute })
                 placeholder="name@example.com"
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-base sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e]"
               />
             </div>
             <button

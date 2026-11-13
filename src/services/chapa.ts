@@ -84,26 +84,41 @@ export class ChapaPaymentService {
    * Performs independent server-to-server verification
    * Crucial rule: Never trust client return URL alone
    */
-  public async verifyPayment(tx_ref: string, expectedAmountETB: number): Promise<{
+  public async verifyPayment(
+    tx_ref: string,
+    expectedAmountETB: number,
+    options?: { method?: string; simulateFailure?: boolean }
+  ): Promise<{
     verified: boolean;
     providerReference: string;
     verifiedAmount: number;
     status: 'success' | 'failed';
     message: string;
   }> {
-    // Simulate server-to-server HTTP call to https://api.chapa.global/v2/payments/{tx_ref}/verify
-    await new Promise((r) => setTimeout(r, 600));
+    // Fast simulated server-to-server verification call to Chapa V2 sandbox
+    await new Promise((r) => setTimeout(r, 250));
+
+    if (options?.simulateFailure) {
+      return {
+        verified: false,
+        providerReference: '',
+        verifiedAmount: 0,
+        status: 'failed',
+        message: 'Simulated test payment declined by sandbox gateway.'
+      };
+    }
 
     // Verify amount matches expected premium to prevent amount tampering
     const isAmountMatch = expectedAmountETB > 0;
 
     if (isAmountMatch) {
+      const methodTag = (options?.method || 'CHAPA').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
       return {
         verified: true,
-        providerReference: `CHAPA-REF-${Date.now().toString().slice(-6)}`,
+        providerReference: `${methodTag}-TEST-${Date.now().toString().slice(-6)}`,
         verifiedAmount: expectedAmountETB,
         status: 'success',
-        message: 'Transaction successfully verified via Chapa V2 server verification.'
+        message: 'Transaction successfully verified via Chapa V2 Sandbox.'
       };
     } else {
       return {
@@ -118,3 +133,4 @@ export class ChapaPaymentService {
 }
 
 export const chapaService = new ChapaPaymentService();
+

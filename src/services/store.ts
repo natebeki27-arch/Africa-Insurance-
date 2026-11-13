@@ -18,7 +18,8 @@ import {
   UserRole,
   UserAccount,
   NewsletterSubscriber,
-  AdminUploadedDocument
+  AdminUploadedDocument,
+  InsuranceClaim
 } from '../types/insurance';
 import {
   SEED_BRANCHES,
@@ -54,7 +55,42 @@ const STORAGE_KEYS = {
   TRAINING_PROGRESS: 'aic_training_progress',
   AUDIT_LOGS: 'aic_audit_logs',
   SETTINGS: 'aic_settings',
-  SUBSCRIBERS: 'aic_subscribers'
+  SUBSCRIBERS: 'aic_subscribers',
+  CLAIMS: 'aic_claims'
+};
+
+const memoryFallback = new Map<string, string>();
+const safeStorage = {
+  getItem(key: string): string | null {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+    } catch {
+      // Fallback for private browsing / embedded webviews
+    }
+    return memoryFallback.get(key) ?? null;
+  },
+  setItem(key: string, value: string): void {
+    memoryFallback.set(key, value);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch {
+      // Ignore quota / security errors in restricted browsers
+    }
+  },
+  removeItem(key: string): void {
+    memoryFallback.delete(key);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(key);
+      }
+    } catch {
+      // Ignore security errors in restricted browsers
+    }
+  }
 };
 
 class AICStore {
@@ -66,7 +102,7 @@ class AICStore {
 
   private initializeIfEmpty() {
     // Ensure products exist and are migrated from legacy demonstration data
-    const storedProducts = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+    const storedProducts = safeStorage.getItem(STORAGE_KEYS.PRODUCTS);
     let shouldRefreshProducts = false;
     if (!storedProducts) {
       shouldRefreshProducts = true;
@@ -90,13 +126,13 @@ class AICStore {
       }
     }
     if (shouldRefreshProducts) {
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(SEED_PRODUCTS));
+      safeStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(SEED_PRODUCTS));
     }
 
     // Ensure policies do not contain demonstration names
-    const storedPolicies = localStorage.getItem(STORAGE_KEYS.POLICIES);
+    const storedPolicies = safeStorage.getItem(STORAGE_KEYS.POLICIES);
     if (!storedPolicies) {
-      localStorage.setItem(STORAGE_KEYS.POLICIES, JSON.stringify(SEED_POLICIES));
+      safeStorage.setItem(STORAGE_KEYS.POLICIES, JSON.stringify(SEED_POLICIES));
     } else {
       try {
         const parsed = JSON.parse(storedPolicies);
@@ -104,17 +140,17 @@ class AICStore {
           Array.isArray(parsed) &&
           parsed.some((p: any) => p.productName?.toLowerCase().includes('demonstration'))
         ) {
-          localStorage.setItem(STORAGE_KEYS.POLICIES, JSON.stringify(SEED_POLICIES));
+          safeStorage.setItem(STORAGE_KEYS.POLICIES, JSON.stringify(SEED_POLICIES));
         }
       } catch (e) {
-        localStorage.setItem(STORAGE_KEYS.POLICIES, JSON.stringify(SEED_POLICIES));
+        safeStorage.setItem(STORAGE_KEYS.POLICIES, JSON.stringify(SEED_POLICIES));
       }
     }
 
     // Ensure applications do not contain demonstration names
-    const storedApps = localStorage.getItem(STORAGE_KEYS.APPLICATIONS);
+    const storedApps = safeStorage.getItem(STORAGE_KEYS.APPLICATIONS);
     if (!storedApps) {
-      localStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(SEED_APPLICATIONS));
+      safeStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(SEED_APPLICATIONS));
     } else {
       try {
         const parsed = JSON.parse(storedApps);
@@ -122,41 +158,41 @@ class AICStore {
           Array.isArray(parsed) &&
           parsed.some((a: any) => a.productName?.toLowerCase().includes('demonstration'))
         ) {
-          localStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(SEED_APPLICATIONS));
+          safeStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(SEED_APPLICATIONS));
         }
       } catch (e) {
-        localStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(SEED_APPLICATIONS));
+        safeStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(SEED_APPLICATIONS));
       }
     }
 
     // Initialize official admin documents
-    if (!localStorage.getItem(STORAGE_KEYS.ADMIN_DOCUMENTS)) {
-      localStorage.setItem(STORAGE_KEYS.ADMIN_DOCUMENTS, JSON.stringify(SEED_ADMIN_DOCUMENTS));
+    if (!safeStorage.getItem(STORAGE_KEYS.ADMIN_DOCUMENTS)) {
+      safeStorage.setItem(STORAGE_KEYS.ADMIN_DOCUMENTS, JSON.stringify(SEED_ADMIN_DOCUMENTS));
     }
 
-    if (!localStorage.getItem(STORAGE_KEYS.BRANCHES)) {
-      localStorage.setItem(STORAGE_KEYS.BRANCHES, JSON.stringify(SEED_BRANCHES));
+    if (!safeStorage.getItem(STORAGE_KEYS.BRANCHES)) {
+      safeStorage.setItem(STORAGE_KEYS.BRANCHES, JSON.stringify(SEED_BRANCHES));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.CUSTOMERS)) {
-      localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(SEED_CUSTOMERS));
+    if (!safeStorage.getItem(STORAGE_KEYS.CUSTOMERS)) {
+      safeStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(SEED_CUSTOMERS));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.OPERATORS)) {
-      localStorage.setItem(STORAGE_KEYS.OPERATORS, JSON.stringify(SEED_OPERATORS));
+    if (!safeStorage.getItem(STORAGE_KEYS.OPERATORS)) {
+      safeStorage.setItem(STORAGE_KEYS.OPERATORS, JSON.stringify(SEED_OPERATORS));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.STAFF)) {
-      localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(SEED_STAFF));
+    if (!safeStorage.getItem(STORAGE_KEYS.STAFF)) {
+      safeStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(SEED_STAFF));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.TRAINING_COURSES)) {
-      localStorage.setItem(STORAGE_KEYS.TRAINING_COURSES, JSON.stringify(SEED_TRAINING_COURSES));
+    if (!safeStorage.getItem(STORAGE_KEYS.TRAINING_COURSES)) {
+      safeStorage.setItem(STORAGE_KEYS.TRAINING_COURSES, JSON.stringify(SEED_TRAINING_COURSES));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.EMAIL_TEMPLATES)) {
-      localStorage.setItem(STORAGE_KEYS.EMAIL_TEMPLATES, JSON.stringify(SEED_EMAIL_TEMPLATES));
+    if (!safeStorage.getItem(STORAGE_KEYS.EMAIL_TEMPLATES)) {
+      safeStorage.setItem(STORAGE_KEYS.EMAIL_TEMPLATES, JSON.stringify(SEED_EMAIL_TEMPLATES));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS)) {
-      localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(SEED_AUDIT_LOGS));
+    if (!safeStorage.getItem(STORAGE_KEYS.AUDIT_LOGS)) {
+      safeStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(SEED_AUDIT_LOGS));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.PAYMENTS)) {
-      localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify([
+    if (!safeStorage.getItem(STORAGE_KEYS.PAYMENTS)) {
+      safeStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify([
         {
           paymentAttemptId: 'PAY-001',
           customerId: 'CUST-001',
@@ -176,8 +212,8 @@ class AICStore {
         }
       ]));
     }
-    if (!localStorage.getItem(STORAGE_KEYS.EMAIL_JOBS)) {
-      localStorage.setItem(STORAGE_KEYS.EMAIL_JOBS, JSON.stringify([
+    if (!safeStorage.getItem(STORAGE_KEYS.EMAIL_JOBS)) {
+      safeStorage.setItem(STORAGE_KEYS.EMAIL_JOBS, JSON.stringify([
         {
           emailJobId: 'EML-JOB-001',
           eventId: 'EVT-POL-ISSUE-001',
@@ -208,15 +244,21 @@ class AICStore {
 
   // --- CURRENT USER & AUTH ---
   public getCurrentUser(): UserAccount | null {
-    const raw = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    return raw ? JSON.parse(raw) : null;
+    const raw = safeStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      safeStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      return null;
+    }
   }
 
   public setCurrentUser(user: UserAccount | null) {
     if (user) {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+      safeStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
     } else {
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      safeStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     }
     this.notify();
   }
@@ -304,7 +346,7 @@ class AICStore {
 
   // --- PRODUCTS ---
   public getProducts(): InsuranceProduct[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.PRODUCTS);
     return raw ? JSON.parse(raw) : [];
   }
 
@@ -329,7 +371,7 @@ class AICStore {
     } else {
       products.push(updated);
     }
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    safeStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
     this.logAudit({
       actorUid: this.getCurrentUser()?.uid || 'SYSTEM',
       actorName: this.getCurrentUser()?.firstName || 'System',
@@ -350,7 +392,7 @@ class AICStore {
       p.publicStatus = 'archived';
       p.archivedAt = new Date().toISOString();
       p.updatedAt = new Date().toISOString();
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      safeStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
       this.logAudit({
         actorUid: this.getCurrentUser()?.uid || 'SYSTEM',
         actorName: this.getCurrentUser()?.firstName || 'System',
@@ -367,7 +409,7 @@ class AICStore {
 
   // --- ADMIN UPLOADED POLICY DOCUMENTS ---
   public getAdminDocuments(): AdminUploadedDocument[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.ADMIN_DOCUMENTS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.ADMIN_DOCUMENTS);
     return raw ? JSON.parse(raw) : [];
   }
 
@@ -384,7 +426,7 @@ class AICStore {
     } else {
       docs.unshift(doc);
     }
-    localStorage.setItem(STORAGE_KEYS.ADMIN_DOCUMENTS, JSON.stringify(docs));
+    safeStorage.setItem(STORAGE_KEYS.ADMIN_DOCUMENTS, JSON.stringify(docs));
     this.logAudit({
       actorUid: this.getCurrentUser()?.uid || 'SYSTEM',
       actorName: this.getCurrentUser()?.firstName || 'System',
@@ -401,7 +443,7 @@ class AICStore {
   public deleteAdminDocument(docId: string): void {
     const docs = this.getAdminDocuments();
     const filtered = docs.filter((d) => d.id !== docId);
-    localStorage.setItem(STORAGE_KEYS.ADMIN_DOCUMENTS, JSON.stringify(filtered));
+    safeStorage.setItem(STORAGE_KEYS.ADMIN_DOCUMENTS, JSON.stringify(filtered));
     this.logAudit({
       actorUid: this.getCurrentUser()?.uid || 'SYSTEM',
       actorName: this.getCurrentUser()?.firstName || 'System',
@@ -417,7 +459,7 @@ class AICStore {
 
   // --- CUSTOMERS ---
   public getCustomers(): CustomerProfile[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.CUSTOMERS);
     return raw ? JSON.parse(raw) : [];
   }
 
@@ -434,13 +476,13 @@ class AICStore {
     } else {
       list.unshift(updated);
     }
-    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(list));
+    safeStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(list));
     this.notify();
   }
 
   // --- OPERATORS ---
   public getOperators(): OperatorProfile[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.OPERATORS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.OPERATORS);
     return raw ? JSON.parse(raw) : [];
   }
 
@@ -452,7 +494,7 @@ class AICStore {
     } else {
       list.push({ ...op, updatedAt: new Date().toISOString() });
     }
-    localStorage.setItem(STORAGE_KEYS.OPERATORS, JSON.stringify(list));
+    safeStorage.setItem(STORAGE_KEYS.OPERATORS, JSON.stringify(list));
     this.notify();
   }
 
@@ -462,7 +504,7 @@ class AICStore {
     if (op) {
       op.accountStatus = status;
       op.updatedAt = new Date().toISOString();
-      localStorage.setItem(STORAGE_KEYS.OPERATORS, JSON.stringify(list));
+      safeStorage.setItem(STORAGE_KEYS.OPERATORS, JSON.stringify(list));
       this.logAudit({
         actorUid: this.getCurrentUser()?.uid || 'SYSTEM',
         actorName: this.getCurrentUser()?.firstName || 'Admin',
@@ -479,7 +521,7 @@ class AICStore {
 
   // --- APPLICATIONS ---
   public getApplications(): InsuranceApplication[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.APPLICATIONS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.APPLICATIONS);
     return raw ? JSON.parse(raw) : [];
   }
 
@@ -496,13 +538,13 @@ class AICStore {
     } else {
       list.unshift(updated);
     }
-    localStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(list));
+    safeStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(list));
     this.notify();
   }
 
   // --- POLICIES ---
   public getPolicies(): InsurancePolicy[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.POLICIES);
+    const raw = safeStorage.getItem(STORAGE_KEYS.POLICIES);
     return raw ? JSON.parse(raw) : [];
   }
 
@@ -517,8 +559,10 @@ class AICStore {
 
   public issuePolicy(policy: InsurancePolicy): void {
     const policies = this.getPolicies();
-    policies.unshift(policy);
-    localStorage.setItem(STORAGE_KEYS.POLICIES, JSON.stringify(policies));
+    if (!policies.some((p) => p.policyId === policy.policyId)) {
+      policies.unshift(policy);
+      safeStorage.setItem(STORAGE_KEYS.POLICIES, JSON.stringify(policies));
+    }
 
     // Update application status to approved
     const apps = this.getApplications();
@@ -526,7 +570,7 @@ class AICStore {
     if (app) {
       app.applicationStatus = 'approved';
       app.updatedAt = new Date().toISOString();
-      localStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(apps));
+      safeStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(apps));
     }
 
     // Schedule email confirmation
@@ -611,37 +655,37 @@ class AICStore {
   }
 
   private logVerification(log: PolicyVerificationLog): void {
-    const raw = localStorage.getItem(STORAGE_KEYS.VERIFICATION_LOGS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.VERIFICATION_LOGS);
     const list: PolicyVerificationLog[] = raw ? JSON.parse(raw) : [];
     list.unshift(log);
-    localStorage.setItem(STORAGE_KEYS.VERIFICATION_LOGS, JSON.stringify(list.slice(0, 500)));
+    safeStorage.setItem(STORAGE_KEYS.VERIFICATION_LOGS, JSON.stringify(list.slice(0, 500)));
   }
 
   public getVerificationLogs(): PolicyVerificationLog[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.VERIFICATION_LOGS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.VERIFICATION_LOGS);
     return raw ? JSON.parse(raw) : [];
   }
 
   // --- BRANCHES ---
   public getBranches(): Branch[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.BRANCHES);
+    const raw = safeStorage.getItem(STORAGE_KEYS.BRANCHES);
     return raw ? JSON.parse(raw) : [];
   }
 
   // --- TRAINING COURSES & PROGRESS ---
   public getTrainingCourses(): TrainingCourse[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.TRAINING_COURSES);
+    const raw = safeStorage.getItem(STORAGE_KEYS.TRAINING_COURSES);
     return raw ? JSON.parse(raw) : [];
   }
 
   public getTrainingProgress(userId: string): TrainingProgress[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.TRAINING_PROGRESS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.TRAINING_PROGRESS);
     const list: TrainingProgress[] = raw ? JSON.parse(raw) : [];
     return list.filter((p) => p.userId === userId);
   }
 
   public saveTrainingProgress(progress: TrainingProgress): void {
-    const raw = localStorage.getItem(STORAGE_KEYS.TRAINING_PROGRESS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.TRAINING_PROGRESS);
     const list: TrainingProgress[] = raw ? JSON.parse(raw) : [];
     const idx = list.findIndex((p) => p.userId === progress.userId && p.courseId === progress.courseId);
     if (idx >= 0) {
@@ -649,25 +693,25 @@ class AICStore {
     } else {
       list.push(progress);
     }
-    localStorage.setItem(STORAGE_KEYS.TRAINING_PROGRESS, JSON.stringify(list));
+    safeStorage.setItem(STORAGE_KEYS.TRAINING_PROGRESS, JSON.stringify(list));
     this.notify();
   }
 
   // --- EMAIL AUTOMATION & JOBS ---
   public getEmailTemplates(): EmailTemplate[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.EMAIL_TEMPLATES);
+    const raw = safeStorage.getItem(STORAGE_KEYS.EMAIL_TEMPLATES);
     return raw ? JSON.parse(raw) : [];
   }
 
   public getEmailJobs(): EmailJob[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.EMAIL_JOBS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.EMAIL_JOBS);
     return raw ? JSON.parse(raw) : [];
   }
 
   public enqueueEmailJob(job: EmailJob): void {
     const jobs = this.getEmailJobs();
     jobs.unshift(job);
-    localStorage.setItem(STORAGE_KEYS.EMAIL_JOBS, JSON.stringify(jobs.slice(0, 300)));
+    safeStorage.setItem(STORAGE_KEYS.EMAIL_JOBS, JSON.stringify(jobs.slice(0, 300)));
     this.notify();
   }
 
@@ -679,21 +723,21 @@ class AICStore {
       job.status = 'delivered';
       job.deliveredAt = new Date().toISOString();
       job.failureReason = undefined;
-      localStorage.setItem(STORAGE_KEYS.EMAIL_JOBS, JSON.stringify(jobs));
+      safeStorage.setItem(STORAGE_KEYS.EMAIL_JOBS, JSON.stringify(jobs));
       this.notify();
     }
   }
 
   // --- PAYMENTS & CHAPA ---
   public getPaymentAttempts(): PaymentAttempt[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.PAYMENTS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.PAYMENTS);
     return raw ? JSON.parse(raw) : [];
   }
 
   public createPaymentAttempt(attempt: PaymentAttempt): void {
     const list = this.getPaymentAttempts();
     list.unshift(attempt);
-    localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(list));
+    safeStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(list));
     this.notify();
   }
 
@@ -705,7 +749,7 @@ class AICStore {
       item.verificationStatus = success ? 'verified_server' : 'failed_verification';
       item.verifiedAt = new Date().toISOString();
       item.updatedAt = new Date().toISOString();
-      localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(list));
+      safeStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(list));
 
       // Also update linked application status if successful
       if (success) {
@@ -714,7 +758,7 @@ class AICStore {
         if (app) {
           app.applicationStatus = 'payment_verified';
           app.updatedAt = new Date().toISOString();
-          localStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(apps));
+          safeStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(apps));
         }
       }
 
@@ -733,14 +777,98 @@ class AICStore {
     }
   }
 
+  // --- CLAIMS ---
+  public getClaims(): InsuranceClaim[] {
+    const raw = safeStorage.getItem(STORAGE_KEYS.CLAIMS);
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  public saveClaim(claim: InsuranceClaim): void {
+    const list = this.getClaims();
+    const idx = list.findIndex((c) => c.claimId === claim.claimId);
+    const updated = { ...claim, updatedAt: new Date().toISOString() };
+    if (idx >= 0) {
+      list[idx] = updated;
+    } else {
+      list.unshift(updated);
+    }
+    safeStorage.setItem(STORAGE_KEYS.CLAIMS, JSON.stringify(list));
+    this.notify();
+  }
+
+  public mergeCustomerWorkspaceRecords(params: {
+    applications?: InsuranceApplication[];
+    policies?: InsurancePolicy[];
+    payments?: PaymentAttempt[];
+    claims?: InsuranceClaim[];
+  }): void {
+    let changed = false;
+
+    if (params.applications?.length) {
+      const existing = this.getApplications();
+      const map = new Map(existing.map((a) => [a.applicationId, a]));
+      for (const app of params.applications) {
+        map.set(app.applicationId, app);
+      }
+      safeStorage.setItem(
+        STORAGE_KEYS.APPLICATIONS,
+        JSON.stringify(Array.from(map.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
+      );
+      changed = true;
+    }
+
+    if (params.policies?.length) {
+      const existing = this.getPolicies();
+      const map = new Map(existing.map((p) => [p.policyId, p]));
+      for (const pol of params.policies) {
+        map.set(pol.policyId, pol);
+      }
+      safeStorage.setItem(
+        STORAGE_KEYS.POLICIES,
+        JSON.stringify(Array.from(map.values()).sort((a, b) => (b.issuedAt || '').localeCompare(a.issuedAt || '')))
+      );
+      changed = true;
+    }
+
+    if (params.payments?.length) {
+      const existing = this.getPaymentAttempts();
+      const map = new Map(existing.map((p) => [p.paymentAttemptId, p]));
+      for (const pay of params.payments) {
+        map.set(pay.paymentAttemptId, pay);
+      }
+      safeStorage.setItem(
+        STORAGE_KEYS.PAYMENTS,
+        JSON.stringify(Array.from(map.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+      );
+      changed = true;
+    }
+
+    if (params.claims?.length) {
+      const existing = this.getClaims();
+      const map = new Map(existing.map((c) => [c.claimId, c]));
+      for (const clm of params.claims) {
+        map.set(clm.claimId, clm);
+      }
+      safeStorage.setItem(
+        STORAGE_KEYS.CLAIMS,
+        JSON.stringify(Array.from(map.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
+      );
+      changed = true;
+    }
+
+    if (changed) {
+      this.notify();
+    }
+  }
+
   // --- AUDIT LOGS ---
   public getAuditLogs(): AuditLogEntry[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
     return raw ? JSON.parse(raw) : [];
   }
 
   public logAudit(entry: Omit<AuditLogEntry, 'auditId' | 'timestamp'> & { auditId?: string; timestamp?: string }): void {
-    const raw = localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
     const list: AuditLogEntry[] = raw ? JSON.parse(raw) : [];
     const fullEntry: AuditLogEntry = {
       auditId: entry.auditId || `AUD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -748,13 +876,13 @@ class AICStore {
       ...entry
     };
     list.unshift(fullEntry);
-    localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(list.slice(0, 1000)));
+    safeStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(list.slice(0, 1000)));
     this.notify();
   }
 
   // --- NEWSLETTER SUBSCRIBERS ---
   public getSubscribers(): NewsletterSubscriber[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.SUBSCRIBERS);
+    const raw = safeStorage.getItem(STORAGE_KEYS.SUBSCRIBERS);
     if (!raw) {
       const initial: NewsletterSubscriber[] = [
         {
@@ -776,7 +904,7 @@ class AICStore {
           source: 'customer_portal'
         }
       ];
-      localStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(initial));
+      safeStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(initial));
       return initial;
     }
     return JSON.parse(raw);
@@ -790,7 +918,7 @@ class AICStore {
       if (existing.status === 'unsubscribed') {
         existing.status = 'active';
         existing.subscribedAt = new Date().toISOString();
-        localStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(subscribers));
+        safeStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(subscribers));
         this.notify();
         return { success: true, message: 'Welcome back! Your subscription has been reactivated.', subscriber: existing };
       }
@@ -808,7 +936,7 @@ class AICStore {
     };
 
     subscribers.unshift(newSub);
-    localStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(subscribers));
+    safeStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(subscribers));
     this.logAudit({
       actorUid: this.getCurrentUser()?.uid || 'PUBLIC-VISITOR',
       actorName: fullName || cleanEmail,
@@ -829,14 +957,14 @@ class AICStore {
     const item = subscribers.find(s => s.subscriberId === subscriberId);
     if (item) {
       item.status = status;
-      localStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(subscribers));
+      safeStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(subscribers));
       this.notify();
     }
   }
 
   public deleteSubscriber(subscriberId: string): void {
     const subscribers = this.getSubscribers().filter(s => s.subscriberId !== subscriberId);
-    localStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(subscribers));
+    safeStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(subscribers));
     this.notify();
   }
 }

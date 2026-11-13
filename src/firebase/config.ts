@@ -6,7 +6,13 @@ import {
   setPersistence,
   browserLocalPersistence
 } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  Firestore
+} from 'firebase/firestore';
 import appletConfig from '../../firebase-applet-config.json';
 
 export interface FirebaseClientConfig {
@@ -42,9 +48,25 @@ setPersistence(auth, browserLocalPersistence).catch(() => {
   // Persistence fallback handled by Firebase Auth
 });
 
-export const db: Firestore = firebaseConfig.firestoreDatabaseId
-  ? getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId)
-  : getFirestore(firebaseApp);
+function createFirestoreInstance(): Firestore {
+  const dbId = firebaseConfig.firestoreDatabaseId;
+  try {
+    return dbId
+      ? initializeFirestore(
+          firebaseApp,
+          { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) },
+          dbId
+        )
+      : initializeFirestore(firebaseApp, {
+          localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+        });
+  } catch {
+    // Fallback if initializeFirestore was already invoked or IndexedDB is restricted
+    return dbId ? getFirestore(firebaseApp, dbId) : getFirestore(firebaseApp);
+  }
+}
+
+export const db: Firestore = createFirestoreInstance();
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({

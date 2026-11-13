@@ -25,20 +25,30 @@ import { AdminUploadedDocument } from '../../types/insurance';
 interface ProductDetailPageProps {
   slug: string;
   navigate: (route: string) => void;
+  embedded?: boolean;
+  onBack?: () => void;
+  onApply?: (productId: string) => void;
 }
 
-export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, navigate }) => {
+export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
+  slug,
+  navigate,
+  embedded = false,
+  onBack,
+  onApply
+}) => {
   const product = store.getProductBySlug(slug);
   const [selectedDoc, setSelectedDoc] = useState<AdminUploadedDocument | null>(null);
   const [downloadSuccessNotice, setDownloadSuccessNotice] = useState<string | null>(null);
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-slate-50 py-16 text-center">
+      <div className={embedded ? 'bg-white border border-slate-200 rounded-2xl py-14 px-4 text-center' : 'min-h-screen bg-slate-50 py-16 text-center'}>
         <h2 className="text-xl font-bold text-slate-900">Product Not Found</h2>
         <p className="text-xs text-slate-500 mt-2">The requested insurance policy configuration does not exist.</p>
         <button
-          onClick={() => navigate('/insurance')}
+          type="button"
+          onClick={() => (onBack ? onBack() : navigate('/insurance'))}
           className="mt-4 px-4 py-2 bg-[#12366e] hover:bg-[#0e2a58] text-white text-xs font-semibold rounded-lg cursor-pointer"
         >
           Return to Catalogue
@@ -51,6 +61,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug, navi
   const officialDocs = store.getDocumentsForProduct(product.productId);
 
   const handleStartApplication = () => {
+    if (onApply) {
+      onApply(product.productId);
+      return;
+    }
     const user = store.getCurrentUser();
     if (!user) {
       navigate(`/login?redirect=${encodeURIComponent(`/portal?action=new_app&productId=${product.productId}`)}`);
@@ -138,17 +152,18 @@ Africa Insurance Company S.C., Addis Ababa, Ethiopia.
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div className={embedded ? 'w-full' : 'min-h-screen bg-slate-50 py-6 sm:py-10'}>
+      <div className={embedded ? 'space-y-6 sm:space-y-8' : 'max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 space-y-6 sm:space-y-8'}>
         
         {/* Breadcrumb & Back */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <button
-            onClick={() => navigate('/insurance')}
+            type="button"
+            onClick={() => (onBack ? onBack() : navigate('/insurance'))}
             className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#12366e] transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to Products Catalogue</span>
+            <ArrowLeft className="w-4 h-4 shrink-0" />
+            <span>{onBack ? 'Back to Services & Products' : 'Back to Products Catalogue'}</span>
           </button>
           <div className="text-xs text-slate-500 font-mono">
             ID: {product.productId} · Rev {product.version}.0
@@ -169,15 +184,15 @@ Africa Insurance Company S.C., Addis Ababa, Ethiopia.
         )}
 
         {/* Hero Section */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-10 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-8 lg:p-10 shadow-sm">
           <div className="max-w-3xl space-y-4">
-            <div className="flex items-center gap-2 text-xs font-semibold text-[#12366e] uppercase tracking-wider">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#12366e] uppercase tracking-wider">
               <span>{product.productCategory} Line</span>
               <span aria-hidden="true">·</span>
-              <span>Online & Operator Application Enabled</span>
+              <span>Online &amp; Operator Application Enabled</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-bold text-[#12366e] tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-bold text-[#12366e] tracking-tight">
               {product.productName}
             </h1>
 

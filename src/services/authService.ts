@@ -24,6 +24,17 @@ import { store } from './store';
 import { CustomerProfile, UserAccount, UserRole } from '../types/insurance';
 import { startGlobalProgress, doneGlobalProgress } from '../components/TopProgressBar';
 
+export type AuthHandshakeStage =
+  | 'idle'
+  | 'opening_provider'
+  | 'verifying_credentials'
+  | 'refreshing_token'
+  | 'provisioning_profile'
+  | 'syncing_workspace'
+  | 'ready';
+
+export type HandshakeProgressCallback = (stage: AuthHandshakeStage, timedOut?: boolean) => void;
+
 export interface AuthActionResult {
   success: boolean;
   userAccount?: UserAccount;
@@ -49,9 +60,37 @@ export interface OnboardingPayload {
   marketingConsent: boolean;
 }
 
-function isMobileBrowser(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+function isInIframe(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+}
+
+function setSessionItem(key: string, value: string): void {
+  try {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, value);
+  } catch {
+    // Ignore storage restrictions in private browsing / webviews
+  }
+}
+
+function getSessionItem(key: string): string | null {
+  try {
+    return typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(key) : null;
+  } catch {
+    return null;
+  }
+}
+
+function removeSessionItem(key: string): void {
+  try {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(key);
+  } catch {
+    // Ignore storage restrictions in private browsing / webviews
+  }
 }
 
 function splitDisplayName(displayName?: string | null, email?: string | null): { firstName: string; lastName: string } {
@@ -122,16 +161,39 @@ const inFlightProvisioning = new Map<
   Promise<{ userAccount: UserAccount; customerProfile: CustomerProfile | null; isNewUser: boolean }>
 >();
 
+export function isPermissionDeniedError(error: any): boolean {
+  const code = String(error?.code || '').toLowerCase();
+  const msg = String(error?.message || '');
+  return (
+    code === 'permission-denied' ||
+    code === 'auth/permission-denied' ||
+    /missing or insufficient permissions/i.test(msg)
+  );
+}
+
+export async function refreshAuthSessionToken(): Promise<boolean> {
+  try {
+    if (!auth.currentUser) return false;
+    await auth.currentUser.getIdToken(true);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function provisionOrLoadAccount(
   firebaseUser: User,
-  providerUsed: 'google.com' | 'password'
+  providerUsed: 'google.com' | 'password',
+  onProgress?: HandshakeProgressCallback
 ): Promise<{ userAccount: UserAccount; customerProfile: CustomerProfile | null; isNewUser: boolean }> {
   const uid = firebaseUser.uid;
   const existingPromise = inFlightProvisioning.get(uid);
   if (existingPromise) {
+    onProgress?.('provisioning_profile');
     return existingPromise;
   }
 
+  onProgress?.('provisioning_profile');
   const run = (async () => {
     const now = new Date().toISOString();
     const userRef = doc(db, 'users', uid);
@@ -143,7 +205,8 @@ export async function provisionOrLoadAccount(
     let userAccount: UserAccount;
 
     try {
-      userAccount = await runTransaction(db, async (transaction) => {
+      const executeProvisionTx = async () =>
+        runTransaction(db, async (transaction) => {
         const snap = await transaction.get(userRef);
         if (!snap.exists()) {
           isNewUser = true;
@@ -192,6 +255,22 @@ export async function provisionOrLoadAccount(
           return updatedUser;
         }
       });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Firestore provisioning timeout')), 5000)
+      );
+      try {
+        userAccount = await Promise.race([executeProvisionTx(), timeoutPromise]);
+      } catch (firstErr: any) {
+        if (isPermissionDeniedError(firstErr)) {
+          onProgress?.('refreshing_token');
+          await firebaseUser.getIdToken(true).catch(() => {});
+          await new Promise((r) => setTimeout(r, 350));
+          onProgress?.('provisioning_profile');
+          userAccount = await Promise.race([executeProvisionTx(), timeoutPromise]);
+        } else {
+          throw firstErr;
+        }
+      }
     } catch (err) {
       console.error('Firestore user provisioning fallback triggered:', err);
       const cached = store.getCurrentUser();
@@ -220,6 +299,7 @@ export async function provisionOrLoadAccount(
     }
 
   // Load existing customer profile if any
+  onProgress?.('syncing_workspace');
   let customerProfile: CustomerProfile | null = null;
   try {
     const custRef = doc(db, 'customers', uid);
@@ -237,21 +317,21 @@ export async function provisionOrLoadAccount(
   store.setCurrentUser(userAccount);
 
   if (isNewUser) {
-    await logSecurityEvent({
+    logSecurityEvent({
       uid,
       eventType: 'ACCOUNT_PROVISIONED',
       provider: providerUsed,
       outcome: 'success',
       metadata: { onboardingStatus: 'incomplete' }
-    });
+    }).catch(() => {});
   } else {
-    await logSecurityEvent({
+    logSecurityEvent({
       uid,
       eventType: 'USER_SIGNED_IN',
       provider: providerUsed,
       outcome: 'success',
       metadata: { accountType: userAccount.accountType }
-    });
+    }).catch(() => {});
   }
 
   return { userAccount, customerProfile, isNewUser };
@@ -268,6 +348,13 @@ export async function provisionOrLoadAccount(
 }
 
 function mapFirebaseAuthError(error: any): { code: string; message: string; conflictEmail?: string } {
+  if (isPermissionDeniedError(error)) {
+    return {
+      code: 'permission-denied',
+      message:
+        'Missing or insufficient permissions while verifying your session. If Firebase domain settings or rules were recently updated, please re-authenticate below to refresh your credentials.'
+    };
+  }
   const code = error?.code || 'auth/unknown';
   switch (code) {
     case 'auth/popup-closed-by-user':
@@ -321,6 +408,12 @@ function mapFirebaseAuthError(error: any): { code: string; message: string; conf
       };
     case 'auth/unauthorized-domain': {
       const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+      if (host.endsWith('.vercel.app') && host !== 'africa-insurance.vercel.app') {
+        return {
+          code,
+          message: `You are on a temporary Vercel preview link ("${host}"). Google Sign-In is authorized on the permanent domain "africa-insurance.vercel.app" — switch to it below or add this preview host in Firebase Console > Authentication > Settings > Authorized domains.`
+        };
+      }
       return {
         code,
         message: `The domain "${host}" is not listed in Firebase Authorized Domains. Add "${host}" in Firebase Console > Authentication > Settings > Authorized domains.`
@@ -332,6 +425,18 @@ function mapFirebaseAuthError(error: any): { code: string; message: string; conf
         message:
           'Email/Password sign-in is not enabled in Firebase Console yet. Please use Continue with Google, or enable Email/Password under Authentication > Sign-in method in Firebase Console.'
       };
+    case 'auth/web-storage-unsupported':
+      return {
+        code,
+        message:
+          'Your browser has third-party storage or cookies blocked. Open the link directly in Chrome or Safari (not inside an in-app browser) and try again.'
+      };
+    case 'auth/internal-error':
+      return {
+        code,
+        message:
+          'Google Sign-In encountered a temporary browser error. Refresh the page or open in Chrome/Safari and retry.'
+      };
     default:
       return {
         code,
@@ -340,15 +445,26 @@ function mapFirebaseAuthError(error: any): { code: string; message: string; conf
   }
 }
 
-export async function signInWithGoogle(intendedRedirect?: string): Promise<AuthActionResult> {
+export async function signInWithGoogle(
+  intendedRedirect?: string,
+  onProgress?: HandshakeProgressCallback
+): Promise<AuthActionResult> {
   if (intendedRedirect) {
-    sessionStorage.setItem('aic_intended_redirect', intendedRedirect);
+    setSessionItem('aic_intended_redirect', intendedRedirect);
   }
 
+  onProgress?.('opening_provider', false);
+  const slowTimer = setTimeout(() => {
+    onProgress?.('opening_provider', true);
+  }, 7500);
+
   try {
-    // Always prefer signInWithPopup so iframe & mobile environments with allowlisted JS origins work reliably
+    // Prefer signInWithPopup for desktop, modern mobile, and allowlisted iframe origins
     const result = await signInWithPopup(auth, googleProvider);
-    const { userAccount, customerProfile } = await provisionOrLoadAccount(result.user, 'google.com');
+    clearTimeout(slowTimer);
+    onProgress?.('refreshing_token', false);
+    const { userAccount, customerProfile } = await provisionOrLoadAccount(result.user, 'google.com', onProgress);
+    onProgress?.('ready', false);
     const destination = getDestinationForAccount(userAccount, intendedRedirect);
     return {
       success: true,
@@ -357,8 +473,17 @@ export async function signInWithGoogle(intendedRedirect?: string): Promise<AuthA
       destination
     };
   } catch (error: any) {
-    if (error?.code === 'auth/operation-not-supported-in-this-environment') {
+    clearTimeout(slowTimer);
+    const canRedirectFallback =
+      error?.code === 'auth/operation-not-supported-in-this-environment' ||
+      (!isInIframe() &&
+        (error?.code === 'auth/popup-blocked' ||
+          error?.code === 'auth/web-storage-unsupported' ||
+          error?.code === 'auth/internal-error'));
+
+    if (canRedirectFallback) {
       try {
+        onProgress?.('opening_provider', false);
         await signInWithRedirect(auth, googleProvider);
         return { success: true, redirectInitiated: true };
       } catch (redirectError: any) {
@@ -387,8 +512,8 @@ export async function completeRedirectSignIn(): Promise<AuthActionResult | null>
   try {
     const result = await getRedirectResult(auth);
     if (!result || !result.user) return null;
-    const intendedRedirect = sessionStorage.getItem('aic_intended_redirect') || undefined;
-    sessionStorage.removeItem('aic_intended_redirect');
+    const intendedRedirect = getSessionItem('aic_intended_redirect') || undefined;
+    removeSessionItem('aic_intended_redirect');
     const { userAccount, customerProfile } = await provisionOrLoadAccount(result.user, 'google.com');
     return {
       success: true,
@@ -410,11 +535,20 @@ export async function completeRedirectSignIn(): Promise<AuthActionResult | null>
 export async function signInWithEmail(
   email: string,
   password: string,
-  intendedRedirect?: string
+  intendedRedirect?: string,
+  onProgress?: HandshakeProgressCallback
 ): Promise<AuthActionResult> {
+  onProgress?.('verifying_credentials', false);
+  const slowTimer = setTimeout(() => {
+    onProgress?.('verifying_credentials', true);
+  }, 6000);
+
   try {
     const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-    const { userAccount, customerProfile } = await provisionOrLoadAccount(cred.user, 'password');
+    clearTimeout(slowTimer);
+    onProgress?.('refreshing_token', false);
+    const { userAccount, customerProfile } = await provisionOrLoadAccount(cred.user, 'password', onProgress);
+    onProgress?.('ready', false);
     return {
       success: true,
       userAccount,
@@ -422,6 +556,7 @@ export async function signInWithEmail(
       destination: getDestinationForAccount(userAccount, intendedRedirect)
     };
   } catch (error: any) {
+    clearTimeout(slowTimer);
     const mapped = mapFirebaseAuthError(error);
     return { success: false, errorCode: mapped.code, errorMessage: mapped.message };
   }
@@ -430,15 +565,24 @@ export async function signInWithEmail(
 export async function registerWithEmail(
   email: string,
   password: string,
-  fullName: string
+  fullName: string,
+  onProgress?: HandshakeProgressCallback
 ): Promise<AuthActionResult> {
+  onProgress?.('verifying_credentials', false);
+  const slowTimer = setTimeout(() => {
+    onProgress?.('verifying_credentials', true);
+  }, 6000);
+
   try {
     const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    clearTimeout(slowTimer);
+    onProgress?.('refreshing_token', false);
     if (fullName.trim()) {
       await updateProfile(cred.user, { displayName: fullName.trim() });
     }
     sendEmailVerification(cred.user).catch(() => {});
-    const { userAccount, customerProfile } = await provisionOrLoadAccount(cred.user, 'password');
+    const { userAccount, customerProfile } = await provisionOrLoadAccount(cred.user, 'password', onProgress);
+    onProgress?.('ready', false);
     return {
       success: true,
       userAccount,
@@ -446,6 +590,7 @@ export async function registerWithEmail(
       destination: getDestinationForAccount(userAccount)
     };
   } catch (error: any) {
+    clearTimeout(slowTimer);
     const mapped = mapFirebaseAuthError(error);
     return { success: false, errorCode: mapped.code, errorMessage: mapped.message };
   }
@@ -500,20 +645,28 @@ export async function saveOnboardingProgress(
     const userRef = doc(db, 'users', uid);
     const custRef = doc(db, 'customers', uid);
 
-    const result = await runTransaction(db, async (transaction) => {
-      const userSnap = await transaction.get(userRef);
-      const custSnap = await transaction.get(custRef);
-      const existingUser = (userSnap.exists() ? userSnap.data() : store.getCurrentUser()) as UserAccount;
-
+    const buildFallbackState = () => {
+      const existingUser = store.getCurrentUser() as UserAccount | null;
       const firstName = payload.firstName?.trim() || existingUser?.firstName || '';
       const lastName = payload.lastName?.trim() || existingUser?.lastName || '';
       const fullName = `${firstName} ${lastName}`.trim() || existingUser?.displayName || 'AIC Customer';
-      const custNumber = custSnap.exists()
-        ? (custSnap.data() as CustomerProfile).customerNumber
-        : `AIC-CUST-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const existingCust = store.getCustomers().find((c) => c.authUid === uid);
+      const custNumber =
+        existingCust?.customerNumber ||
+        `AIC-CUST-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
       const updatedUser: UserAccount = {
-        ...existingUser,
+        ...(existingUser || {
+          uid,
+          accountType: 'customer',
+          email: auth.currentUser?.email || '',
+          emailVerified: Boolean(auth.currentUser?.emailVerified),
+          phoneVerified: false,
+          accountStatus: 'active',
+          registrationChannel: 'self_service',
+          createdAt: now
+        }),
+        uid,
         firstName,
         lastName,
         displayName: fullName,
@@ -542,7 +695,7 @@ export async function saveOnboardingProgress(
         },
         contactInformation: {
           primaryPhone: payload.phone?.trim() || '',
-          email: existingUser?.email || '',
+          email: updatedUser.email || '',
           preferredLanguage: payload.preferredLanguage || 'english'
         },
         address: {
@@ -553,42 +706,143 @@ export async function saveOnboardingProgress(
         identityVerificationStatus: payload.idNumber ? 'pending' : 'unverified',
         accountStatus: 'active',
         registrationChannel: 'self_service',
-        createdAt: custSnap.exists() ? (custSnap.data() as CustomerProfile).createdAt : now,
+        createdAt: existingCust?.createdAt || now,
         updatedAt: now
       };
 
-      transaction.set(
-        userRef,
-        {
+      return { userAccount: updatedUser, customerProfile };
+    };
+
+    const runSaveTx = () =>
+      runTransaction(db, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        const custSnap = await transaction.get(custRef);
+        const existingUser = (userSnap.exists() ? userSnap.data() : store.getCurrentUser()) as UserAccount;
+
+        const firstName = payload.firstName?.trim() || existingUser?.firstName || '';
+        const lastName = payload.lastName?.trim() || existingUser?.lastName || '';
+        const fullName = `${firstName} ${lastName}`.trim() || existingUser?.displayName || 'AIC Customer';
+        const custNumber = custSnap.exists()
+          ? (custSnap.data() as CustomerProfile).customerNumber
+          : `AIC-CUST-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const updatedUser: UserAccount = {
+          ...existingUser,
           uid,
           accountType: existingUser?.accountType || 'customer',
           accountStatus: existingUser?.accountStatus || 'active',
-          email: existingUser?.email || '',
-          firstName: updatedUser.firstName,
-          lastName: updatedUser.lastName,
-          displayName: updatedUser.displayName,
-          phone: updatedUser.phone,
-          onboardingStatus: updatedUser.onboardingStatus,
-          createdAt: existingUser?.createdAt || now,
+          firstName,
+          lastName,
+          displayName: fullName,
+          phone: payload.phone?.trim() || existingUser?.phone || '',
+          onboardingStatus: markComplete ? 'complete' : 'incomplete',
           updatedAt: now,
-          ...(updatedUser.consentRecords ? { consentRecords: updatedUser.consentRecords } : {})
-        },
-        { merge: true }
-      );
-      transaction.set(custRef, customerProfile, { merge: true });
+          consentRecords: markComplete
+            ? {
+                termsAccepted: Boolean(payload.termsAccepted),
+                dataProcessingAccepted: Boolean(payload.privacyAccepted),
+                marketingConsent: Boolean(payload.marketingConsent),
+                timestamp: now
+              }
+            : existingUser?.consentRecords
+        };
 
-      return { userAccount: updatedUser, customerProfile };
-    });
+        const customerProfile: CustomerProfile = {
+          customerId: uid,
+          authUid: uid,
+          customerNumber: custNumber,
+          customerType: 'individual',
+          personalInformation: {
+            fullName,
+            idType: payload.idType || 'national_id',
+            idNumberMasked: payload.idNumber ? `ETH-****-${payload.idNumber.slice(-4)}` : 'PENDING-KYC'
+          },
+          contactInformation: {
+            primaryPhone: payload.phone?.trim() || '',
+            email: existingUser?.email || '',
+            preferredLanguage: payload.preferredLanguage || 'english'
+          },
+          address: {
+            city: payload.city || 'Addis Ababa',
+            subcityOrZone: payload.subcity || 'Bole',
+            region: payload.city === 'Addis Ababa' ? 'Addis Ababa' : 'Ethiopia'
+          },
+          identityVerificationStatus: payload.idNumber ? 'pending' : 'unverified',
+          accountStatus: 'active',
+          registrationChannel: 'self_service',
+          createdAt: custSnap.exists() ? (custSnap.data() as CustomerProfile).createdAt : now,
+          updatedAt: now
+        };
+
+        transaction.set(
+          userRef,
+          {
+            uid,
+            accountType: existingUser?.accountType || 'customer',
+            accountStatus: existingUser?.accountStatus || 'active',
+            email: existingUser?.email || '',
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            displayName: updatedUser.displayName,
+            phone: updatedUser.phone,
+            onboardingStatus: updatedUser.onboardingStatus,
+            createdAt: existingUser?.createdAt || now,
+            updatedAt: now,
+            ...(updatedUser.consentRecords ? { consentRecords: updatedUser.consentRecords } : {})
+          },
+          { merge: true }
+        );
+        transaction.set(custRef, customerProfile, { merge: true });
+
+        return { userAccount: updatedUser, customerProfile };
+      });
+
+    let result: { userAccount: UserAccount; customerProfile: CustomerProfile };
+    try {
+      result = await Promise.race([
+        runSaveTx(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Onboarding sync timeout')), 6000))
+      ]);
+    } catch (firstErr: any) {
+      if (isPermissionDeniedError(firstErr)) {
+        await refreshAuthSessionToken();
+        await new Promise((r) => setTimeout(r, 350));
+        try {
+          result = await runSaveTx();
+        } catch {
+          result = buildFallbackState();
+        }
+      } else {
+        // Offline / slow network fallback: persist locally and queue Firestore merge
+        result = buildFallbackState();
+        setDoc(
+          userRef,
+          {
+            uid,
+            accountType: result.userAccount.accountType || 'customer',
+            accountStatus: result.userAccount.accountStatus || 'active',
+            firstName: result.userAccount.firstName,
+            lastName: result.userAccount.lastName,
+            displayName: result.userAccount.displayName,
+            phone: result.userAccount.phone,
+            onboardingStatus: result.userAccount.onboardingStatus,
+            updatedAt: now
+          },
+          { merge: true }
+        ).catch(() => {});
+        setDoc(custRef, result.customerProfile, { merge: true }).catch(() => {});
+      }
+    }
 
     store.saveCustomer(result.customerProfile);
     store.setCurrentUser(result.userAccount);
 
-    await logSecurityEvent({
+    logSecurityEvent({
       uid,
       eventType: markComplete ? 'ONBOARDING_COMPLETED' : 'ONBOARDING_DRAFT_SAVED',
       provider: 'firestore',
       outcome: 'success'
-    });
+    }).catch(() => {});
 
     return result;
   } finally {

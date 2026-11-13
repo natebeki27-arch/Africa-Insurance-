@@ -10,6 +10,7 @@ import {
   doneGlobalProgress,
   pulseGlobalProgress
 } from './components/TopProgressBar';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 const RouteLoadingFallback: React.FC<{ message?: string }> = ({ message = 'Loading AIC workspace...' }) => {
   useEffect(() => {
@@ -23,30 +24,44 @@ const RouteLoadingFallback: React.FC<{ message?: string }> = ({ message = 'Loadi
   );
 };
 
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+): React.LazyExoticComponent<T> {
+  return lazy(async () => {
+    try {
+      return await factory();
+    } catch (err) {
+      // Retry once after brief delay for flaky mobile networks or post-deploy chunk updates
+      await new Promise((r) => setTimeout(r, 350));
+      return factory();
+    }
+  });
+}
+
 // Primary Landing Page (eagerly loaded for instant first paint)
 import { HomePage } from './pages/public/HomePage';
 
 // Lazy-Loaded Public & Auth Pages
-const ProductsPage = lazy(() => import('./pages/public/ProductsPage').then(m => ({ default: m.ProductsPage })));
-const VerifyPolicyPage = lazy(() => import('./pages/public/VerifyPolicyPage').then(m => ({ default: m.VerifyPolicyPage })));
-const AboutPage = lazy(() => import('./pages/public/AboutPage').then(m => ({ default: m.AboutPage })));
-const ContactPage = lazy(() => import('./pages/public/ContactPage').then(m => ({ default: m.ContactPage })));
-const ClaimsPage = lazy(() => import('./pages/public/ClaimsPage').then(m => ({ default: m.ClaimsPage })));
-const LoginPage = lazy(() => import('./pages/auth/LoginPage').then(m => ({ default: m.LoginPage })));
-const RegisterPage = lazy(() => import('./pages/auth/RegisterPage').then(m => ({ default: m.RegisterPage })));
-const OnboardingPage = lazy(() => import('./pages/auth/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
-const AccountStatusPage = lazy(() => import('./pages/auth/AccountStatusPage').then(m => ({ default: m.AccountStatusPage })));
-const SecretAdminAuthPage = lazy(() => import('./pages/auth/SecretAdminAuthPage').then(m => ({ default: m.SecretAdminAuthPage })));
+const ProductsPage = lazyWithRetry(() => import('./pages/public/ProductsPage').then(m => ({ default: m.ProductsPage })));
+const VerifyPolicyPage = lazyWithRetry(() => import('./pages/public/VerifyPolicyPage').then(m => ({ default: m.VerifyPolicyPage })));
+const AboutPage = lazyWithRetry(() => import('./pages/public/AboutPage').then(m => ({ default: m.AboutPage })));
+const ContactPage = lazyWithRetry(() => import('./pages/public/ContactPage').then(m => ({ default: m.ContactPage })));
+const ClaimsPage = lazyWithRetry(() => import('./pages/public/ClaimsPage').then(m => ({ default: m.ClaimsPage })));
+const LoginPage = lazyWithRetry(() => import('./pages/auth/LoginPage').then(m => ({ default: m.LoginPage })));
+const RegisterPage = lazyWithRetry(() => import('./pages/auth/RegisterPage').then(m => ({ default: m.RegisterPage })));
+const OnboardingPage = lazyWithRetry(() => import('./pages/auth/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
+const AccountStatusPage = lazyWithRetry(() => import('./pages/auth/AccountStatusPage').then(m => ({ default: m.AccountStatusPage })));
+const SecretAdminAuthPage = lazyWithRetry(() => import('./pages/auth/SecretAdminAuthPage').then(m => ({ default: m.SecretAdminAuthPage })));
 
 // Lazy-Loaded Heavy Pages & Workspaces
-const ProductDetailPage = lazy(() => import('./pages/public/ProductDetailPage').then(m => ({ default: m.ProductDetailPage })));
-const BranchesPage = lazy(() => import('./pages/public/BranchesPage').then(m => ({ default: m.BranchesPage })));
-const MediaPage = lazy(() => import('./pages/public/MediaPage').then(m => ({ default: m.MediaPage })));
-const LeadershipPage = lazy(() => import('./pages/public/LeadershipPage').then(m => ({ default: m.LeadershipPage })));
-const CustomerPortal = lazy(() => import('./pages/customer/CustomerPortal').then(m => ({ default: m.CustomerPortal })));
-const OperatorPortal = lazy(() => import('./pages/operator/OperatorPortal').then(m => ({ default: m.OperatorPortal })));
-const StaffWorkspace = lazy(() => import('./pages/staff/StaffWorkspace').then(m => ({ default: m.StaffWorkspace })));
-const AdminControlCentre = lazy(() => import('./pages/admin/AdminControlCentre').then(m => ({ default: m.AdminControlCentre })));
+const ProductDetailPage = lazyWithRetry(() => import('./pages/public/ProductDetailPage').then(m => ({ default: m.ProductDetailPage })));
+const BranchesPage = lazyWithRetry(() => import('./pages/public/BranchesPage').then(m => ({ default: m.BranchesPage })));
+const MediaPage = lazyWithRetry(() => import('./pages/public/MediaPage').then(m => ({ default: m.MediaPage })));
+const LeadershipPage = lazyWithRetry(() => import('./pages/public/LeadershipPage').then(m => ({ default: m.LeadershipPage })));
+const CustomerPortal = lazyWithRetry(() => import('./pages/customer/CustomerPortal').then(m => ({ default: m.CustomerPortal })));
+const OperatorPortal = lazyWithRetry(() => import('./pages/operator/OperatorPortal').then(m => ({ default: m.OperatorPortal })));
+const StaffWorkspace = lazyWithRetry(() => import('./pages/staff/StaffWorkspace').then(m => ({ default: m.StaffWorkspace })));
+const AdminControlCentre = lazyWithRetry(() => import('./pages/admin/AdminControlCentre').then(m => ({ default: m.AdminControlCentre })));
 
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState<string>(() => {
@@ -79,18 +94,26 @@ export default function App() {
   // Firebase Authentication State Listener & Redirect Result Handler
   useEffect(() => {
     let mounted = true;
+    // Ensure UI never hangs waiting on Firebase Auth listener on slow or restricted networks
+    const safetyTimer = setTimeout(() => {
+      if (mounted) setAuthReady(true);
+    }, 2500);
+
     completeRedirectSignIn().then((res) => {
       if (mounted && res?.success && res.destination) {
         navigate(res.destination);
       }
-    });
+    }).catch(() => {});
+
     const unsubscribe = subscribeToAuthSession(() => {
       if (mounted) {
+        clearTimeout(safetyTimer);
         setAuthReady(true);
       }
     });
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
       unsubscribe();
     };
   }, []);
@@ -167,13 +190,6 @@ export default function App() {
       case '/contact':
         return <ContactPage />;
       case '/login': {
-        if (!authReady) {
-          return (
-            <div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-500">
-              Verifying your AIC session...
-            </div>
-          );
-        }
         const rawRedirect = queryParams.get('redirect');
         const resolvedRedirect = rawRedirect
           ? rawRedirect.startsWith('/')
@@ -183,15 +199,11 @@ export default function App() {
         return <LoginPage navigate={navigate} redirectRoute={resolvedRedirect} />;
       }
       case '/register':
-        if (!authReady) {
-          return (
-            <div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-500">
-              Verifying your AIC session...
-            </div>
-          );
-        }
         return <RegisterPage navigate={navigate} />;
       case '/onboarding':
+        if (!authReady && !store.getCurrentUser()) {
+          return <RouteLoadingFallback message="Preparing your AIC onboarding profile..." />;
+        }
         return <OnboardingPage navigate={navigate} redirectRoute={queryParams.get('redirect') || undefined} />;
       case '/account-status':
         return <AccountStatusPage navigate={navigate} mode="status" />;
@@ -280,6 +292,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col font-sans text-slate-900 bg-slate-50">
       <TopProgressBar />
+      <OfflineIndicator />
 
       {/* Rapid Role Switcher Banner ONLY shown inside authorized internal workspaces */}
       {isInternalWorkspace && <RoleSwitcher />}

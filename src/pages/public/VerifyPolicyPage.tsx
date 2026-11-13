@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { store } from '../../services/store';
+import { lookupPublicPolicyVerification } from '../../services/portalFirestore';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { Shield, Search, CheckCircle2, AlertOctagon, Clock, XCircle, QrCode } from 'lucide-react';
 import { PolicyVerificationLog, InsurancePolicy } from '../../types/insurance';
@@ -24,15 +25,34 @@ export const VerifyPolicyPage: React.FC<VerifyPolicyPageProps> = ({ initialCode 
     }
   }, [initialCode]);
 
-  const handleVerify = (inputCode: string) => {
+  const handleVerify = async (inputCode: string) => {
     const trimmed = inputCode.trim();
     if (!trimmed) return;
     setIsSearching(true);
-    setTimeout(() => {
-      const res = store.verifyPolicyCode(trimmed, 'public_portal');
-      setResult(res);
+    const localRes = store.verifyPolicyCode(trimmed, 'public_portal');
+    if (localRes.policy) {
+      setResult(localRes);
       setIsSearching(false);
-    }, 400);
+      return;
+    }
+
+    const remotePol = await lookupPublicPolicyVerification(trimmed);
+    const timestamp = new Date().toISOString();
+    if (remotePol) {
+      const today = timestamp.split('T')[0];
+      const outcome: PolicyVerificationLog['verificationOutcome'] =
+        remotePol.policyStatus === 'cancelled'
+          ? 'verified_cancelled'
+          : remotePol.policyStatus === 'suspended'
+          ? 'verified_suspended'
+          : remotePol.expiryDate && remotePol.expiryDate < today
+          ? 'verified_expired'
+          : 'verified_active';
+      setResult({ outcome, policy: remotePol, timestamp });
+    } else {
+      setResult(localRes);
+    }
+    setIsSearching(false);
   };
 
   const getStatusBadge = (outcome: PolicyVerificationLog['verificationOutcome']) => {
@@ -77,8 +97,8 @@ export const VerifyPolicyPage: React.FC<VerifyPolicyPageProps> = ({ initialCode 
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div className="min-h-screen bg-slate-50 py-6 sm:py-12 overflow-x-hidden">
+      <div className="max-w-3xl mx-auto px-3.5 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="text-center space-y-3">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#12366e] text-[#c59b27] shadow-sm mb-2">
@@ -117,21 +137,23 @@ export const VerifyPolicyPage: React.FC<VerifyPolicyPageProps> = ({ initialCode 
                   placeholder="e.g. AIC-VRF-8924-K92X"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-sm font-mono tracking-wider uppercase text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e] focus:ring-1 focus:ring-[#12366e]"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base sm:text-sm font-mono tracking-wider uppercase text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e] focus:ring-1 focus:ring-[#12366e]"
                   required
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-[11px] text-slate-500">
-                Sample test codes: <button type="button" onClick={() => { setCode('AIC-VRF-8924-K92X'); handleVerify('AIC-VRF-8924-K92X'); }} className="text-[#12366e] font-mono hover:underline">AIC-VRF-8924-K92X</button> (Active) · <button type="button" onClick={() => { setCode('AIC-VRF-1092-EXP7'); handleVerify('AIC-VRF-1092-EXP7'); }} className="text-[#12366e] font-mono hover:underline">AIC-VRF-1092-EXP7</button> (Expired)
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+              <span className="text-[11px] text-slate-500 leading-relaxed">
+                Sample test codes:{' '}
+                <button type="button" data-compact="true" onClick={() => { setCode('AIC-VRF-8924-K92X'); handleVerify('AIC-VRF-8924-K92X'); }} className="text-[#12366e] font-mono hover:underline cursor-pointer">AIC-VRF-8924-K92X</button> (Active) ·{' '}
+                <button type="button" data-compact="true" onClick={() => { setCode('AIC-VRF-1092-EXP7'); handleVerify('AIC-VRF-1092-EXP7'); }} className="text-[#12366e] font-mono hover:underline cursor-pointer">AIC-VRF-1092-EXP7</button> (Expired)
               </span>
 
               <button
                 type="submit"
                 disabled={isSearching}
-                className="bg-[#12366e] hover:bg-[#0e2a58] text-white px-6 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
+                className="w-full sm:w-auto bg-[#12366e] hover:bg-[#0e2a58] text-white px-6 py-2.5 rounded-lg text-sm sm:text-xs font-semibold tracking-wide transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shrink-0"
               >
                 <Search className="w-3.5 h-3.5 text-[#c59b27]" />
                 <span>{isSearching ? 'Querying...' : 'Verify Code'}</span>

@@ -35,8 +35,12 @@ const LanguageContext = createContext<LanguageContextValue>({
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<AppLanguage>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('aic_preferred_language') as AppLanguage | null;
-      if (saved && TRANSLATIONS[saved]) return saved;
+      try {
+        const saved = localStorage.getItem('aic_preferred_language') as AppLanguage | null;
+        if (saved && TRANSLATIONS[saved]) return saved;
+      } catch {
+        // Ignore storage restrictions in private browsing / embedded webviews
+      }
     }
     return 'english';
   });
@@ -45,7 +49,11 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!TRANSLATIONS[lang]) return;
     setLanguageState(lang);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('aic_preferred_language', lang);
+      try {
+        localStorage.setItem('aic_preferred_language', lang);
+      } catch {
+        // Ignore storage restrictions in private browsing / embedded webviews
+      }
     }
   }, []);
 

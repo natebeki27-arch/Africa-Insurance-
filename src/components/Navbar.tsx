@@ -3,6 +3,7 @@ import { store } from '../services/store';
 import { signOutUser, getDestinationForAccount } from '../services/authService';
 import { useLanguage } from '../i18n/LanguageContext';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { PWAInstallButton } from './PWAInstallButton';
 import { Shield, ChevronDown, Menu, X, LogOut, LayoutDashboard, User } from 'lucide-react';
 
 interface NavbarProps {
@@ -123,8 +124,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
           </button>
         </nav>
 
-        {/* Zone 3: Language Switcher & Account Menu / Sign In */}
+        {/* Zone 3: Language Switcher, Install App & Account Menu / Sign In */}
         <div className="hidden md:flex items-center gap-2.5 shrink-0 relative">
+          <PWAInstallButton />
           <LanguageSwitcher variant="desktop" />
           {currentUser ? (
             <div className="relative">
@@ -205,6 +207,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
         <div className="md:hidden flex items-center gap-2 shrink-0">
           <LanguageSwitcher variant="compact" />
           <button
+            type="button"
+            data-compact="true"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 text-slate-700 hover:text-slate-900 focus:outline-none cursor-pointer"
             aria-label="Toggle navigation menu"
@@ -217,8 +221,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
       {/* Mobile drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-2 text-sm font-medium">
-          <div className="pb-2 border-b border-slate-100">
+          <div className="pb-2 border-b border-slate-100 space-y-2">
             <LanguageSwitcher variant="pills" />
+            <PWAInstallButton compact />
           </div>
 
           <button

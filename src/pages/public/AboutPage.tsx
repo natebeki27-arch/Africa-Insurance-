@@ -1,4 +1,5 @@
 import React from 'react';
+import { store } from '../../services/store';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { 
   Shield, 
@@ -10,7 +11,8 @@ import {
   Sparkles,
   MapPin,
   ExternalLink,
-  Newspaper
+  Newspaper,
+  ArrowRight
 } from 'lucide-react';
 
 interface AboutPageProps {
@@ -26,8 +28,6 @@ export const AboutPage: React.FC<AboutPageProps> = ({ navigate }) => {
         <div className="max-w-3xl space-y-3 sm:space-y-4">
           <div className="flex items-center gap-2 text-[11px] sm:text-xs font-semibold text-[#12366e] uppercase tracking-wider">
             <span>{t('nav.about')}</span>
-            <span aria-hidden="true">·</span>
-            <span>Est. December 8, 1994 · Addis Ababa, Ethiopia</span>
           </div>
           <h1 className="text-2xl sm:text-5xl font-bold text-[#12366e] tracking-tight leading-tight">
             {t('home.whyTitle')}
@@ -35,9 +35,26 @@ export const AboutPage: React.FC<AboutPageProps> = ({ navigate }) => {
           <p className="text-sm text-[#c59b27] font-semibold italic">
             የላቀና ጥራት ያለው አገልግሎት መስጠት ቃል ኪዳናችን ነው !
           </p>
-          <p className="text-base text-slate-600 leading-relaxed">
+          <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
             Africa Insurance Company (S.C.) was established as a premier privately owned composite insurer on December 8, 1994, in accordance with the Insurance Business Proclamation No. 86/1994 and the Commercial Code of Ethiopia. For over three decades, AIC has safeguarded Ethiopian families, enterprises, national infrastructure, and commercial transport corridors.
           </p>
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => navigate(store.getCurrentUser() ? '/portal' : '/login')}
+              className="bg-[#12366e] hover:bg-[#0e2a58] text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-semibold shadow-sm transition-all flex items-center gap-2 group cursor-pointer"
+            >
+              <span>{t('hero.getStarted')}</span>
+              <ArrowRight className="w-4 h-4 text-[#f0cb5a] transition-transform group-hover:translate-x-0.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/insurance')}
+              className="bg-white hover:bg-slate-100 text-[#12366e] border border-slate-300 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer"
+            >
+              {t('nav.products')}
+            </button>
+          </div>
         </div>
 
         {/* Vision, Mission, and Core Values Cards */}
@@ -198,36 +215,6 @@ export const AboutPage: React.FC<AboutPageProps> = ({ navigate }) => {
                 January 2026 · Official Release
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Corporate Governance & Stewardship Teaser */}
-        <div className="bg-gradient-to-r from-slate-900 to-[#12366e] text-white rounded-3xl p-8 sm:p-10 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#f0cb5a]">
-              Corporate Leadership & Stewardship
-            </span>
-            <h3 className="text-2xl font-bold tracking-tight">
-              Fiduciary Governance & Executive Management
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Africa Insurance Company is guided by a 10-member Board of Directors elected by shareholders and an executive team with extensive actuarial, claims, and underwriting leadership. Access complete bios and organizational charts via our Corporate Leadership portal.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-            <button
-              onClick={() => navigate('/board-of-directors')}
-              className="bg-[#f0cb5a] hover:bg-[#e0bb4a] text-[#0c2550] px-5 py-3 rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer whitespace-nowrap"
-            >
-              Board of Directors
-            </button>
-            <button
-              onClick={() => navigate('/executive-managers')}
-              className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-5 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap"
-            >
-              Executive Management
-            </button>
           </div>
         </div>
 

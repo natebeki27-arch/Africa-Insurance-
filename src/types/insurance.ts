@@ -251,6 +251,7 @@ export interface InsuranceApplication {
   underwritingNotes?: string[];
   missingInformationRequest?: string;
   quotationId?: string;
+  quotedAmountETB?: number;
   createdAt: string;
   submittedAt?: string;
   updatedAt: string;

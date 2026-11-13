@@ -8,6 +8,7 @@ import {
   AuthHandshakeStage
 } from '../../services/authService';
 import { AuthHandshakeTracker } from '../../components/AuthHandshakeTracker';
+import { ResponsiveImage } from '../../components/ResponsiveImage';
 import { store } from '../../services/store';
 import { useLanguage } from '../../i18n/LanguageContext';
 import {
@@ -165,11 +166,14 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ navigate }) => {
       <div className="max-w-md w-full mx-auto bg-white border border-slate-200 rounded-2xl p-5 sm:p-10 shadow-sm space-y-4 sm:space-y-6">
         <div className="text-center space-y-2 sm:space-y-3">
           <div className="flex justify-center">
-            <img
+            <ResponsiveImage
               src="/assets/aic_logo.jpg"
               alt="Africa Insurance Company S.C."
+              priority
+              sizes="160px"
+              pictureClassName="inline-block"
               className="h-10 sm:h-12 w-auto object-contain"
-              onError={(e) => {
+              onFallbackError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
             />

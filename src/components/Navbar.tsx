@@ -5,6 +5,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { PWAInstallButton } from './PWAInstallButton';
 import { Shield, ChevronDown, Menu, X, LogOut, LayoutDashboard, User } from 'lucide-react';
+import { ResponsiveImage } from './ResponsiveImage';
 
 interface NavbarProps {
   currentRoute: string;
@@ -46,14 +47,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
           title="Africa Insurance Company S.C."
           className="flex items-center gap-3 text-left shrink-0 group focus:outline-none cursor-pointer"
         >
-          <img
+          <ResponsiveImage
             src="/assets/aic_logo.jpg"
             alt="Africa Insurance Company S.C."
+            priority
+            sizes="(max-width: 639px) 120px, 160px"
+            pictureClassName="inline-block"
             className="h-9 sm:h-12 w-auto object-contain transition-transform group-hover:scale-[1.02]"
-            onError={(e) => {
+            onFallbackError={(e) => {
               const target = e.currentTarget;
               target.style.display = 'none';
-              const fallback = target.parentElement?.querySelector('.logo-fallback');
+              const fallback = target.closest('button')?.querySelector('.logo-fallback');
               if (fallback) fallback.classList.remove('hidden');
             }}
           />

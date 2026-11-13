@@ -10,6 +10,7 @@ import {
   AuthHandshakeStage
 } from '../../services/authService';
 import { AuthHandshakeTracker } from '../../components/AuthHandshakeTracker';
+import { ResponsiveImage } from '../../components/ResponsiveImage';
 import { store } from '../../services/store';
 import { useLanguage } from '../../i18n/LanguageContext';
 import {
@@ -262,11 +263,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ navigate, redirectRoute })
         {/* AIC Logo & Identity */}
         <div className="text-center space-y-2 sm:space-y-3">
           <div className="flex justify-center">
-            <img
+            <ResponsiveImage
               src="/assets/aic_logo.jpg"
               alt="Africa Insurance Company S.C."
+              priority
+              sizes="160px"
+              pictureClassName="inline-block"
               className="h-10 sm:h-12 w-auto object-contain"
-              onError={(e) => {
+              onFallbackError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
             />

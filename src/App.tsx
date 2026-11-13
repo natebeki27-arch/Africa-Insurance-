@@ -97,7 +97,31 @@ export default function App() {
     // Ensure UI never hangs waiting on Firebase Auth listener on slow or restricted networks
     const safetyTimer = setTimeout(() => {
       if (mounted) setAuthReady(true);
-    }, 2500);
+    }, 500);
+
+    // Prefetch primary route bundles immediately after first paint for instant transitions
+    const prefetchChunks = () => {
+      void Promise.allSettled([
+        import('./pages/public/ProductsPage'),
+        import('./pages/public/ProductDetailPage'),
+        import('./pages/auth/LoginPage'),
+        import('./pages/customer/CustomerPortal'),
+        import('./pages/public/VerifyPolicyPage')
+      ]);
+    };
+
+    let idleHandle: number | undefined;
+    let idleTimeout: ReturnType<typeof setTimeout> | undefined;
+    if (typeof window !== 'undefined') {
+      if (store.getCurrentUser()) {
+        void import('./pages/customer/CustomerPortal').catch(() => {});
+      }
+      if ('requestIdleCallback' in window) {
+        idleHandle = (window as any).requestIdleCallback(prefetchChunks, { timeout: 500 });
+      } else {
+        idleTimeout = setTimeout(prefetchChunks, 150);
+      }
+    }
 
     completeRedirectSignIn().then((res) => {
       if (mounted && res?.success && res.destination) {
@@ -114,6 +138,10 @@ export default function App() {
     return () => {
       mounted = false;
       clearTimeout(safetyTimer);
+      if (idleTimeout) clearTimeout(idleTimeout);
+      if (idleHandle && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        (window as any).cancelIdleCallback(idleHandle);
+      }
       unsubscribe();
     };
   }, []);
@@ -213,14 +241,12 @@ export default function App() {
 
       // 3. Workspaces (Protected by auth state & role checks)
       case '/portal': {
-        if (!authReady) {
+        const user = store.getCurrentUser();
+        if (!authReady && !user) {
           return (
-            <div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-500">
-              Loading your AIC policyholder workspace...
-            </div>
+            <RouteLoadingFallback message="Loading your AIC policyholder workspace..." />
           );
         }
-        const user = store.getCurrentUser();
         if (!user) {
           return <LoginPage navigate={navigate} redirectRoute="/portal" />;
         }

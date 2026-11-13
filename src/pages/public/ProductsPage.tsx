@@ -3,6 +3,7 @@ import { store } from '../../services/store';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { Shield, Search, ArrowRight, CheckCircle2, Car, Building2, Anchor, HardHat, HeartHandshake, Briefcase, FileText } from 'lucide-react';
 import { InsuranceProduct } from '../../types/insurance';
+import { ResponsiveImage, getCategoryCoverImage } from '../../components/ResponsiveImage';
 
 interface ProductsPageProps {
   navigate: (route: string) => void;
@@ -101,22 +102,30 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ navigate }) => {
           {filtered.map((product) => (
             <div
               key={product.productId}
-              className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 flex flex-col justify-between hover:shadow-md transition-shadow group"
+              className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group"
             >
-              <div className="space-y-3 sm:space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+              <div>
+                <div className="relative h-36 sm:h-40 w-full bg-slate-200 overflow-hidden border-b border-slate-100">
+                  <ResponsiveImage
+                    src={getCategoryCoverImage(product.productCategory, product.heroImage)}
+                    alt={product.productName}
+                    sizes="(max-width: 767px) 94vw, (max-width: 1023px) 46vw, 31vw"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent pointer-events-none" />
+                  <div className="absolute top-3 left-3 w-8 h-8 rounded-lg bg-white/95 backdrop-blur-sm flex items-center justify-center shadow-sm">
                     {getCategoryIcon(product.productCategory)}
                   </div>
-                  <div className="text-[10px] sm:text-[11px] font-mono text-slate-500 uppercase">
-                    Version {product.version}.0
+                  <div className="absolute bottom-2.5 right-3 text-[10px] font-mono font-semibold text-white bg-slate-900/65 backdrop-blur-sm px-2 py-0.5 rounded uppercase">
+                    v{product.version}.0 · {product.productCategory}
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-[#12366e] transition-colors">
-                    {product.productName}
-                  </h3>
+                <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-[#12366e] transition-colors">
+                      {product.productName}
+                    </h3>
                   <p className="text-[11px] sm:text-xs text-slate-600 mt-1.5 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-none">
                     {product.shortDescription}
                   </p>
@@ -131,9 +140,10 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ navigate }) => {
                     </div>
                   ))}
                 </div>
+                </div>
               </div>
 
-              <div className="pt-3.5 sm:pt-5 mt-3 sm:mt-4 border-t border-slate-100 flex items-center justify-between">
+              <div className="px-4 pb-4 sm:px-6 sm:pb-6 pt-3.5 sm:pt-4 border-t border-slate-100 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] sm:text-[11px] text-slate-500 block">Indicative Base</span>
                   <span className="font-mono text-xs font-semibold text-slate-900 tabular-nums">

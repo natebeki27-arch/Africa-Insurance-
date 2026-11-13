@@ -13,6 +13,7 @@ import {
   Clock,
   Tag
 } from 'lucide-react';
+import { ResponsiveImage } from '../../components/ResponsiveImage';
 
 interface MediaPageProps {
   navigate: (route: string) => void;
@@ -161,9 +162,11 @@ export const MediaPage: React.FC<MediaPageProps> = ({ navigate }) => {
               className="lg:col-span-7 bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:border-[#12366e]/30 transition-all duration-300 group flex flex-col justify-between cursor-pointer"
             >
               <div className="relative w-full aspect-[16/10] overflow-hidden bg-slate-100">
-                <img
+                <ResponsiveImage
                   src={heroStory.image || '/assets/aic_hero_addis_1793894081899.jpg'}
                   alt={heroStory.title}
+                  priority
+                  sizes="(max-width: 1023px) 94vw, 680px"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/20 to-transparent" />
@@ -220,9 +223,10 @@ export const MediaPage: React.FC<MediaPageProps> = ({ navigate }) => {
                     className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-[#12366e]/30 transition-all group flex gap-4 items-start cursor-pointer flex-1"
                   >
                     <div className="relative w-24 h-24 sm:w-28 sm:h-24 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
-                      <img
+                      <ResponsiveImage
                         src={item.image || '/assets/aic_family_protection_1793894083687.jpg'}
                         alt={item.title}
+                        sizes="112px"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     </div>
@@ -264,9 +268,10 @@ export const MediaPage: React.FC<MediaPageProps> = ({ navigate }) => {
                   className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group space-y-3 cursor-pointer"
                 >
                   <div className="w-full h-40 rounded-xl overflow-hidden bg-slate-100">
-                    <img
+                    <ResponsiveImage
                       src={item.image || '/assets/aic_hero_addis_1793894081899.jpg'}
-                      alt=""
+                      alt={item.title}
+                      sizes="(max-width: 767px) 94vw, 380px"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />
                   </div>
@@ -309,9 +314,10 @@ export const MediaPage: React.FC<MediaPageProps> = ({ navigate }) => {
 
               {selectedArticle.image && (
                 <div className="w-full h-64 sm:h-72 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner">
-                  <img
+                  <ResponsiveImage
                     src={selectedArticle.image}
                     alt={selectedArticle.title}
+                    sizes="(max-width: 639px) 92vw, 620px"
                     className="w-full h-full object-cover"
                   />
                 </div>

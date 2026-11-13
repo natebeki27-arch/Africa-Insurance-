@@ -203,6 +203,7 @@ export async function provisionOrLoadAccount(
 
     let isNewUser = false;
     let userAccount: UserAccount;
+    let prefetchedCustSnap: Awaited<ReturnType<typeof getDoc>> | null = null;
 
     try {
       const executeProvisionTx = async () =>
@@ -256,21 +257,33 @@ export async function provisionOrLoadAccount(
         }
       });
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Firestore provisioning timeout')), 5000)
+        setTimeout(() => reject(new Error('Firestore provisioning timeout')), 3000)
       );
+      const custFetchPromise = getDoc(doc(db, 'customers', uid)).catch(() => null);
       try {
-        userAccount = await Promise.race([executeProvisionTx(), timeoutPromise]);
+        const [txUser, snapRes] = await Promise.all([
+          Promise.race([executeProvisionTx(), timeoutPromise]),
+          custFetchPromise
+        ]);
+        userAccount = txUser;
+        prefetchedCustSnap = snapRes;
       } catch (firstErr: any) {
         if (isPermissionDeniedError(firstErr)) {
           onProgress?.('refreshing_token');
           await firebaseUser.getIdToken(true).catch(() => {});
-          await new Promise((r) => setTimeout(r, 350));
+          await new Promise((r) => setTimeout(r, 250));
           onProgress?.('provisioning_profile');
-          userAccount = await Promise.race([executeProvisionTx(), timeoutPromise]);
+          const [txUser, snapRes] = await Promise.all([
+            Promise.race([executeProvisionTx(), timeoutPromise]),
+            custFetchPromise
+          ]);
+          userAccount = txUser;
+          prefetchedCustSnap = snapRes;
         } else {
           throw firstErr;
         }
       }
+      onProgress?.('syncing_workspace');
     } catch (err) {
       console.error('Firestore user provisioning fallback triggered:', err);
       const cached = store.getCurrentUser();
@@ -298,19 +311,17 @@ export async function provisionOrLoadAccount(
             };
     }
 
-  // Load existing customer profile if any
+  // Use prefetched customer profile if available
   onProgress?.('syncing_workspace');
   let customerProfile: CustomerProfile | null = null;
   try {
-    const custRef = doc(db, 'customers', uid);
-    const custSnap = await getDoc(custRef);
-    if (custSnap.exists()) {
-      customerProfile = custSnap.data() as CustomerProfile;
-      // Ensure local store has this customer profile synced for portals
+    if (prefetchedCustSnap && prefetchedCustSnap.exists()) {
+      customerProfile = prefetchedCustSnap.data() as CustomerProfile;
       store.saveCustomer(customerProfile);
+    } else {
+      customerProfile = store.getCustomers().find((c) => c.authUid === uid) || null;
     }
   } catch {
-    // Fallback to store lookup by authUid
     customerProfile = store.getCustomers().find((c) => c.authUid === uid) || null;
   }
 
@@ -871,10 +882,17 @@ export function subscribeToAuthSession(onReady: (user: UserAccount | null) => vo
       onReady(null);
       return;
     }
+    const providerUsed = firebaseUser.providerData.some((p) => p.providerId === 'google.com')
+      ? 'google.com'
+      : 'password';
+    const cached = store.getCurrentUser();
+    if (cached && cached.uid === firebaseUser.uid) {
+      // Unblock UI immediately and refresh Firestore profile silently in background
+      onReady(cached);
+      provisionOrLoadAccount(firebaseUser, providerUsed).catch(() => {});
+      return;
+    }
     try {
-      const providerUsed = firebaseUser.providerData.some((p) => p.providerId === 'google.com')
-        ? 'google.com'
-        : 'password';
       const { userAccount } = await provisionOrLoadAccount(firebaseUser, providerUsed);
       onReady(userAccount);
     } catch {

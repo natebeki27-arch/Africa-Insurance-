@@ -99,10 +99,9 @@ export function calculateProductQuoteETB(
 
 export async function syncCustomerWorkspaceFromFirestore(uid: string): Promise<void> {
   if (!uid || !auth.currentUser) return;
-  startGlobalProgress();
   try {
     const timeout = new Promise<void>((_, reject) =>
-      setTimeout(() => reject(new Error('Workspace sync timeout')), 6000)
+      setTimeout(() => reject(new Error('Workspace sync timeout')), 3000)
     );
 
     const fetchAll = (async () => {
@@ -136,8 +135,6 @@ export async function syncCustomerWorkspaceFromFirestore(uid: string): Promise<v
     await Promise.race([fetchAll, timeout]);
   } catch (error) {
     logFirestoreIssue(error, OperationType.LIST, `workspace/${uid}`);
-  } finally {
-    doneGlobalProgress();
   }
 }
 

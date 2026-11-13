@@ -21,6 +21,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { AdminUploadedDocument } from '../../types/insurance';
+import { ResponsiveImage, getCategoryCoverImage } from '../../components/ResponsiveImage';
 
 interface ProductDetailPageProps {
   slug: string;
@@ -185,45 +186,68 @@ Africa Insurance Company S.C., Addis Ababa, Ethiopia.
 
         {/* Hero Section */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-8 lg:p-10 shadow-sm">
-          <div className="max-w-3xl space-y-4">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#12366e] uppercase tracking-wider">
-              <span>{product.productCategory} Line</span>
-              <span aria-hidden="true">·</span>
-              <span>Online &amp; Operator Application Enabled</span>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center">
+            <div className="lg:col-span-7 space-y-4">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#12366e] uppercase tracking-wider">
+                <span>{product.productCategory} Line</span>
+                <span aria-hidden="true">·</span>
+                <span>Online &amp; Operator Application Enabled</span>
+              </div>
 
-            <h1 className="text-2xl sm:text-4xl font-bold text-[#12366e] tracking-tight">
-              {product.productName}
-            </h1>
+              <h1 className="text-2xl sm:text-4xl font-bold text-[#12366e] tracking-tight">
+                {product.productName}
+              </h1>
 
-            <p className="text-sm text-slate-600 leading-relaxed">
-              {product.fullDescription}
-            </p>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {product.fullDescription}
+              </p>
 
-            {/* Regulatory Assurance Callout */}
-            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3.5 text-xs text-emerald-900 flex items-start gap-3">
-              <Shield className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-              <div>
-                <strong className="font-semibold">Official Africa Insurance Company S.C. Policy Schedule</strong>
-                <p className="mt-0.5 text-emerald-800">
-                  Registered with the National Bank of Ethiopia. Complete your application online or via an authorized AIC operator for immediate digital issuance and policy code generation.
-                </p>
+              {/* Regulatory Assurance Callout */}
+              <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3.5 text-xs text-emerald-900 flex items-start gap-3">
+                <Shield className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="font-semibold">Official Africa Insurance Company S.C. Policy Schedule</strong>
+                  <p className="mt-0.5 text-emerald-800">
+                    Registered with the National Bank of Ethiopia. Complete your application online or via an authorized AIC operator for immediate digital issuance and policy code generation.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <button
+                  onClick={handleStartApplication}
+                  className="bg-[#12366e] hover:bg-[#0e2a58] text-white text-xs font-semibold px-6 py-3 rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <span>Start Online Application</span>
+                  <ArrowRight className="w-4 h-4 text-[#c59b27]" />
+                </button>
+                <div className="text-xs text-slate-500">
+                  <span>Indicative minimum: </span>
+                  <strong className="text-slate-900 font-mono tabular-nums">
+                    {product.quotationConfiguration.standardMinimumPremiumETB.toLocaleString()} ETB
+                  </strong>
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 pt-2">
-              <button
-                onClick={handleStartApplication}
-                className="bg-[#12366e] hover:bg-[#0e2a58] text-white text-xs font-semibold px-6 py-3 rounded-lg transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
-              >
-                <span>Start Online Application</span>
-                <ArrowRight className="w-4 h-4 text-[#c59b27]" />
-              </button>
-              <div className="text-xs text-slate-500">
-                <span>Indicative minimum: </span>
-                <strong className="text-slate-900 font-mono tabular-nums">
-                  {product.quotationConfiguration.standardMinimumPremiumETB.toLocaleString()} ETB
-                </strong>
+            <div className="lg:col-span-5">
+              <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-md aspect-[16/10] bg-slate-100">
+                <ResponsiveImage
+                  src={getCategoryCoverImage(product.productCategory, product.heroImage)}
+                  alt={product.productName}
+                  priority={!embedded}
+                  sizes="(max-width: 1023px) 94vw, 440px"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/45 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px] font-semibold text-white">
+                  <span className="bg-[#12366e]/85 backdrop-blur-sm px-2.5 py-1 rounded-md">
+                    Africa Insurance S.C.
+                  </span>
+                  <span className="bg-slate-900/70 backdrop-blur-sm px-2.5 py-1 rounded-md font-mono">
+                    {product.productCategory.toUpperCase()}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

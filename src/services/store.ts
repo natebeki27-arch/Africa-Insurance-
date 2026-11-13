@@ -95,9 +95,34 @@ const safeStorage = {
 
 class AICStore {
   private listeners: Set<() => void> = new Set();
+  private cache: Map<string, unknown> = new Map();
 
   constructor() {
     this.initializeIfEmpty();
+  }
+
+  private readCached<T>(key: string, fallback: T): T {
+    if (this.cache.has(key)) {
+      return this.cache.get(key) as T;
+    }
+    const raw = safeStorage.getItem(key);
+    if (!raw) {
+      this.cache.set(key, fallback);
+      return fallback;
+    }
+    try {
+      const parsed = JSON.parse(raw) as T;
+      this.cache.set(key, parsed);
+      return parsed;
+    } catch {
+      this.cache.set(key, fallback);
+      return fallback;
+    }
+  }
+
+  private writeCached<T>(key: string, value: T): void {
+    this.cache.set(key, value);
+    safeStorage.setItem(key, JSON.stringify(value));
   }
 
   private initializeIfEmpty() {
@@ -244,20 +269,30 @@ class AICStore {
 
   // --- CURRENT USER & AUTH ---
   public getCurrentUser(): UserAccount | null {
+    if (this.cache.has(STORAGE_KEYS.CURRENT_USER)) {
+      return (this.cache.get(STORAGE_KEYS.CURRENT_USER) as UserAccount | null) ?? null;
+    }
     const raw = safeStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    if (!raw) return null;
+    if (!raw) {
+      this.cache.set(STORAGE_KEYS.CURRENT_USER, null);
+      return null;
+    }
     try {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw) as UserAccount;
+      this.cache.set(STORAGE_KEYS.CURRENT_USER, parsed);
+      return parsed;
     } catch {
       safeStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      this.cache.set(STORAGE_KEYS.CURRENT_USER, null);
       return null;
     }
   }
 
   public setCurrentUser(user: UserAccount | null) {
     if (user) {
-      safeStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+      this.writeCached(STORAGE_KEYS.CURRENT_USER, user);
     } else {
+      this.cache.set(STORAGE_KEYS.CURRENT_USER, null);
       safeStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     }
     this.notify();
@@ -346,8 +381,7 @@ class AICStore {
 
   // --- PRODUCTS ---
   public getProducts(): InsuranceProduct[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.PRODUCTS);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<InsuranceProduct[]>(STORAGE_KEYS.PRODUCTS, []);
   }
 
   public getPublishedProducts(): InsuranceProduct[] {
@@ -363,7 +397,7 @@ class AICStore {
   }
 
   public saveProduct(product: InsuranceProduct): void {
-    const products = this.getProducts();
+    const products = [...this.getProducts()];
     const idx = products.findIndex((p) => p.productId === product.productId);
     const updated = { ...product, updatedAt: new Date().toISOString() };
     if (idx >= 0) {
@@ -371,7 +405,7 @@ class AICStore {
     } else {
       products.push(updated);
     }
-    safeStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    this.writeCached(STORAGE_KEYS.PRODUCTS, products);
     this.logAudit({
       actorUid: this.getCurrentUser()?.uid || 'SYSTEM',
       actorName: this.getCurrentUser()?.firstName || 'System',
@@ -386,13 +420,18 @@ class AICStore {
   }
 
   public archiveProduct(productId: string): void {
-    const products = this.getProducts();
-    const p = products.find((item) => item.productId === productId);
-    if (p) {
-      p.publicStatus = 'archived';
-      p.archivedAt = new Date().toISOString();
-      p.updatedAt = new Date().toISOString();
-      safeStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    const products = this.getProducts().map((item) =>
+      item.productId === productId
+        ? {
+            ...item,
+            publicStatus: 'archived' as const,
+            archivedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        : item
+    );
+    if (products.some((item) => item.productId === productId)) {
+      this.writeCached(STORAGE_KEYS.PRODUCTS, products);
       this.logAudit({
         actorUid: this.getCurrentUser()?.uid || 'SYSTEM',
         actorName: this.getCurrentUser()?.firstName || 'System',
@@ -409,8 +448,7 @@ class AICStore {
 
   // --- ADMIN UPLOADED POLICY DOCUMENTS ---
   public getAdminDocuments(): AdminUploadedDocument[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.ADMIN_DOCUMENTS);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<AdminUploadedDocument[]>(STORAGE_KEYS.ADMIN_DOCUMENTS, []);
   }
 
   public getDocumentsForProduct(productId: string): AdminUploadedDocument[] {
@@ -419,14 +457,14 @@ class AICStore {
   }
 
   public saveAdminDocument(doc: AdminUploadedDocument): void {
-    const docs = this.getAdminDocuments();
+    const docs = [...this.getAdminDocuments()];
     const idx = docs.findIndex((d) => d.id === doc.id);
     if (idx >= 0) {
       docs[idx] = doc;
     } else {
       docs.unshift(doc);
     }
-    safeStorage.setItem(STORAGE_KEYS.ADMIN_DOCUMENTS, JSON.stringify(docs));
+    this.writeCached(STORAGE_KEYS.ADMIN_DOCUMENTS, docs);
     this.logAudit({
       actorUid: this.getCurrentUser()?.uid || 'SYSTEM',
       actorName: this.getCurrentUser()?.firstName || 'System',
@@ -443,7 +481,7 @@ class AICStore {
   public deleteAdminDocument(docId: string): void {
     const docs = this.getAdminDocuments();
     const filtered = docs.filter((d) => d.id !== docId);
-    safeStorage.setItem(STORAGE_KEYS.ADMIN_DOCUMENTS, JSON.stringify(filtered));
+    this.writeCached(STORAGE_KEYS.ADMIN_DOCUMENTS, filtered);
     this.logAudit({
       actorUid: this.getCurrentUser()?.uid || 'SYSTEM',
       actorName: this.getCurrentUser()?.firstName || 'System',
@@ -459,8 +497,7 @@ class AICStore {
 
   // --- CUSTOMERS ---
   public getCustomers(): CustomerProfile[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.CUSTOMERS);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<CustomerProfile[]>(STORAGE_KEYS.CUSTOMERS, []);
   }
 
   public getCustomerById(id: string): CustomerProfile | undefined {
@@ -468,7 +505,7 @@ class AICStore {
   }
 
   public saveCustomer(customer: CustomerProfile): void {
-    const list = this.getCustomers();
+    const list = [...this.getCustomers()];
     const idx = list.findIndex((c) => c.customerId === customer.customerId);
     const updated = { ...customer, updatedAt: new Date().toISOString() };
     if (idx >= 0) {
@@ -476,35 +513,35 @@ class AICStore {
     } else {
       list.unshift(updated);
     }
-    safeStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(list));
+    this.writeCached(STORAGE_KEYS.CUSTOMERS, list);
     this.notify();
   }
 
   // --- OPERATORS ---
   public getOperators(): OperatorProfile[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.OPERATORS);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<OperatorProfile[]>(STORAGE_KEYS.OPERATORS, []);
   }
 
   public saveOperator(op: OperatorProfile): void {
-    const list = this.getOperators();
+    const list = [...this.getOperators()];
     const idx = list.findIndex((item) => item.operatorId === op.operatorId);
     if (idx >= 0) {
       list[idx] = { ...op, updatedAt: new Date().toISOString() };
     } else {
       list.push({ ...op, updatedAt: new Date().toISOString() });
     }
-    safeStorage.setItem(STORAGE_KEYS.OPERATORS, JSON.stringify(list));
+    this.writeCached(STORAGE_KEYS.OPERATORS, list);
     this.notify();
   }
 
   public toggleOperatorStatus(operatorId: string, status: 'active' | 'suspended'): void {
-    const list = this.getOperators();
-    const op = list.find((item) => item.operatorId === operatorId);
-    if (op) {
-      op.accountStatus = status;
-      op.updatedAt = new Date().toISOString();
-      safeStorage.setItem(STORAGE_KEYS.OPERATORS, JSON.stringify(list));
+    const list = this.getOperators().map((item) =>
+      item.operatorId === operatorId
+        ? { ...item, accountStatus: status, updatedAt: new Date().toISOString() }
+        : item
+    );
+    if (list.some((item) => item.operatorId === operatorId)) {
+      this.writeCached(STORAGE_KEYS.OPERATORS, list);
       this.logAudit({
         actorUid: this.getCurrentUser()?.uid || 'SYSTEM',
         actorName: this.getCurrentUser()?.firstName || 'Admin',
@@ -521,8 +558,7 @@ class AICStore {
 
   // --- APPLICATIONS ---
   public getApplications(): InsuranceApplication[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.APPLICATIONS);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<InsuranceApplication[]>(STORAGE_KEYS.APPLICATIONS, []);
   }
 
   public getApplicationById(id: string): InsuranceApplication | undefined {
@@ -530,7 +566,7 @@ class AICStore {
   }
 
   public saveApplication(app: InsuranceApplication): void {
-    const list = this.getApplications();
+    const list = [...this.getApplications()];
     const idx = list.findIndex((a) => a.applicationId === app.applicationId);
     const updated = { ...app, updatedAt: new Date().toISOString() };
     if (idx >= 0) {
@@ -538,14 +574,13 @@ class AICStore {
     } else {
       list.unshift(updated);
     }
-    safeStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(list));
+    this.writeCached(STORAGE_KEYS.APPLICATIONS, list);
     this.notify();
   }
 
   // --- POLICIES ---
   public getPolicies(): InsurancePolicy[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.POLICIES);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<InsurancePolicy[]>(STORAGE_KEYS.POLICIES, []);
   }
 
   public getPolicyById(id: string): InsurancePolicy | undefined {
@@ -558,19 +593,20 @@ class AICStore {
   }
 
   public issuePolicy(policy: InsurancePolicy): void {
-    const policies = this.getPolicies();
+    const policies = [...this.getPolicies()];
     if (!policies.some((p) => p.policyId === policy.policyId)) {
       policies.unshift(policy);
-      safeStorage.setItem(STORAGE_KEYS.POLICIES, JSON.stringify(policies));
+      this.writeCached(STORAGE_KEYS.POLICIES, policies);
     }
 
     // Update application status to approved
-    const apps = this.getApplications();
-    const app = apps.find((a) => a.applicationId === policy.applicationId);
-    if (app) {
-      app.applicationStatus = 'approved';
-      app.updatedAt = new Date().toISOString();
-      safeStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(apps));
+    const apps = this.getApplications().map((a) =>
+      a.applicationId === policy.applicationId
+        ? { ...a, applicationStatus: 'approved' as const, updatedAt: new Date().toISOString() }
+        : a
+    );
+    if (apps.some((a) => a.applicationId === policy.applicationId)) {
+      this.writeCached(STORAGE_KEYS.APPLICATIONS, apps);
     }
 
     // Schedule email confirmation
@@ -655,111 +691,106 @@ class AICStore {
   }
 
   private logVerification(log: PolicyVerificationLog): void {
-    const raw = safeStorage.getItem(STORAGE_KEYS.VERIFICATION_LOGS);
-    const list: PolicyVerificationLog[] = raw ? JSON.parse(raw) : [];
-    list.unshift(log);
-    safeStorage.setItem(STORAGE_KEYS.VERIFICATION_LOGS, JSON.stringify(list.slice(0, 500)));
+    const list = [log, ...this.getVerificationLogs()].slice(0, 500);
+    this.writeCached(STORAGE_KEYS.VERIFICATION_LOGS, list);
   }
 
   public getVerificationLogs(): PolicyVerificationLog[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.VERIFICATION_LOGS);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<PolicyVerificationLog[]>(STORAGE_KEYS.VERIFICATION_LOGS, []);
   }
 
   // --- BRANCHES ---
   public getBranches(): Branch[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.BRANCHES);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<Branch[]>(STORAGE_KEYS.BRANCHES, []);
   }
 
   // --- TRAINING COURSES & PROGRESS ---
   public getTrainingCourses(): TrainingCourse[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.TRAINING_COURSES);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<TrainingCourse[]>(STORAGE_KEYS.TRAINING_COURSES, []);
   }
 
   public getTrainingProgress(userId: string): TrainingProgress[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.TRAINING_PROGRESS);
-    const list: TrainingProgress[] = raw ? JSON.parse(raw) : [];
+    const list = this.readCached<TrainingProgress[]>(STORAGE_KEYS.TRAINING_PROGRESS, []);
     return list.filter((p) => p.userId === userId);
   }
 
   public saveTrainingProgress(progress: TrainingProgress): void {
-    const raw = safeStorage.getItem(STORAGE_KEYS.TRAINING_PROGRESS);
-    const list: TrainingProgress[] = raw ? JSON.parse(raw) : [];
+    const list = [...this.readCached<TrainingProgress[]>(STORAGE_KEYS.TRAINING_PROGRESS, [])];
     const idx = list.findIndex((p) => p.userId === progress.userId && p.courseId === progress.courseId);
     if (idx >= 0) {
       list[idx] = progress;
     } else {
       list.push(progress);
     }
-    safeStorage.setItem(STORAGE_KEYS.TRAINING_PROGRESS, JSON.stringify(list));
+    this.writeCached(STORAGE_KEYS.TRAINING_PROGRESS, list);
     this.notify();
   }
 
   // --- EMAIL AUTOMATION & JOBS ---
   public getEmailTemplates(): EmailTemplate[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.EMAIL_TEMPLATES);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<EmailTemplate[]>(STORAGE_KEYS.EMAIL_TEMPLATES, []);
   }
 
   public getEmailJobs(): EmailJob[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.EMAIL_JOBS);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<EmailJob[]>(STORAGE_KEYS.EMAIL_JOBS, []);
   }
 
   public enqueueEmailJob(job: EmailJob): void {
-    const jobs = this.getEmailJobs();
-    jobs.unshift(job);
-    safeStorage.setItem(STORAGE_KEYS.EMAIL_JOBS, JSON.stringify(jobs.slice(0, 300)));
+    const jobs = [job, ...this.getEmailJobs()].slice(0, 300);
+    this.writeCached(STORAGE_KEYS.EMAIL_JOBS, jobs);
     this.notify();
   }
 
   public retryEmailJob(emailJobId: string): void {
-    const jobs = this.getEmailJobs();
-    const job = jobs.find((j) => j.emailJobId === emailJobId);
-    if (job) {
-      job.attemptCount += 1;
-      job.status = 'delivered';
-      job.deliveredAt = new Date().toISOString();
-      job.failureReason = undefined;
-      safeStorage.setItem(STORAGE_KEYS.EMAIL_JOBS, JSON.stringify(jobs));
+    const jobs = this.getEmailJobs().map((j) =>
+      j.emailJobId === emailJobId
+        ? {
+            ...j,
+            attemptCount: j.attemptCount + 1,
+            status: 'delivered' as const,
+            deliveredAt: new Date().toISOString(),
+            failureReason: undefined
+          }
+        : j
+    );
+    if (jobs.some((j) => j.emailJobId === emailJobId)) {
+      this.writeCached(STORAGE_KEYS.EMAIL_JOBS, jobs);
       this.notify();
     }
   }
 
   // --- PAYMENTS & CHAPA ---
   public getPaymentAttempts(): PaymentAttempt[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.PAYMENTS);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<PaymentAttempt[]>(STORAGE_KEYS.PAYMENTS, []);
   }
 
   public createPaymentAttempt(attempt: PaymentAttempt): void {
-    const list = this.getPaymentAttempts();
-    list.unshift(attempt);
-    safeStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(list));
+    const list = [attempt, ...this.getPaymentAttempts()];
+    this.writeCached(STORAGE_KEYS.PAYMENTS, list);
     this.notify();
   }
 
   public verifyPaymentAttempt(attemptId: string, success: boolean): void {
-    const list = this.getPaymentAttempts();
-    const item = list.find((p) => p.paymentAttemptId === attemptId);
-    if (item) {
-      item.paymentStatus = success ? 'successful' : 'failed';
-      item.verificationStatus = success ? 'verified_server' : 'failed_verification';
-      item.verifiedAt = new Date().toISOString();
-      item.updatedAt = new Date().toISOString();
-      safeStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(list));
+    const list = [...this.getPaymentAttempts()];
+    const idx = list.findIndex((p) => p.paymentAttemptId === attemptId);
+    if (idx >= 0) {
+      const updated: PaymentAttempt = {
+        ...list[idx],
+        paymentStatus: success ? 'successful' : 'failed',
+        verificationStatus: success ? 'verified_server' : 'failed_verification',
+        verifiedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      list[idx] = updated;
+      this.writeCached(STORAGE_KEYS.PAYMENTS, list);
 
-      // Also update linked application status if successful
       if (success) {
-        const apps = this.getApplications();
-        const app = apps.find((a) => a.applicationId === item.applicationId);
-        if (app) {
-          app.applicationStatus = 'payment_verified';
-          app.updatedAt = new Date().toISOString();
-          safeStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(apps));
-        }
+        const apps = this.getApplications().map((a) =>
+          a.applicationId === updated.applicationId
+            ? { ...a, applicationStatus: 'payment_verified' as const, updatedAt: new Date().toISOString() }
+            : a
+        );
+        this.writeCached(STORAGE_KEYS.APPLICATIONS, apps);
       }
 
       this.logAudit({
@@ -769,7 +800,7 @@ class AICStore {
         action: success ? 'PAYMENT_VERIFIED_SUCCESS' : 'PAYMENT_VERIFIED_FAILED',
         resourceType: 'payment',
         resourceId: attemptId,
-        reason: `Server-to-server verification completed. Status: ${item.paymentStatus} (${item.amountETB} ETB)`,
+        reason: `Server-to-server verification completed. Status: ${updated.paymentStatus} (${updated.amountETB} ETB)`,
         correlationId: `PAY-${attemptId}`
       });
 
@@ -779,12 +810,11 @@ class AICStore {
 
   // --- CLAIMS ---
   public getClaims(): InsuranceClaim[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.CLAIMS);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<InsuranceClaim[]>(STORAGE_KEYS.CLAIMS, []);
   }
 
   public saveClaim(claim: InsuranceClaim): void {
-    const list = this.getClaims();
+    const list = [...this.getClaims()];
     const idx = list.findIndex((c) => c.claimId === claim.claimId);
     const updated = { ...claim, updatedAt: new Date().toISOString() };
     if (idx >= 0) {
@@ -792,7 +822,7 @@ class AICStore {
     } else {
       list.unshift(updated);
     }
-    safeStorage.setItem(STORAGE_KEYS.CLAIMS, JSON.stringify(list));
+    this.writeCached(STORAGE_KEYS.CLAIMS, list);
     this.notify();
   }
 
@@ -810,9 +840,9 @@ class AICStore {
       for (const app of params.applications) {
         map.set(app.applicationId, app);
       }
-      safeStorage.setItem(
+      this.writeCached(
         STORAGE_KEYS.APPLICATIONS,
-        JSON.stringify(Array.from(map.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
+        Array.from(map.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       );
       changed = true;
     }
@@ -823,9 +853,9 @@ class AICStore {
       for (const pol of params.policies) {
         map.set(pol.policyId, pol);
       }
-      safeStorage.setItem(
+      this.writeCached(
         STORAGE_KEYS.POLICIES,
-        JSON.stringify(Array.from(map.values()).sort((a, b) => (b.issuedAt || '').localeCompare(a.issuedAt || '')))
+        Array.from(map.values()).sort((a, b) => (b.issuedAt || '').localeCompare(a.issuedAt || ''))
       );
       changed = true;
     }
@@ -836,9 +866,9 @@ class AICStore {
       for (const pay of params.payments) {
         map.set(pay.paymentAttemptId, pay);
       }
-      safeStorage.setItem(
+      this.writeCached(
         STORAGE_KEYS.PAYMENTS,
-        JSON.stringify(Array.from(map.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+        Array.from(map.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       );
       changed = true;
     }
@@ -849,9 +879,9 @@ class AICStore {
       for (const clm of params.claims) {
         map.set(clm.claimId, clm);
       }
-      safeStorage.setItem(
+      this.writeCached(
         STORAGE_KEYS.CLAIMS,
-        JSON.stringify(Array.from(map.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
+        Array.from(map.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       );
       changed = true;
     }
@@ -863,20 +893,17 @@ class AICStore {
 
   // --- AUDIT LOGS ---
   public getAuditLogs(): AuditLogEntry[] {
-    const raw = safeStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
-    return raw ? JSON.parse(raw) : [];
+    return this.readCached<AuditLogEntry[]>(STORAGE_KEYS.AUDIT_LOGS, []);
   }
 
   public logAudit(entry: Omit<AuditLogEntry, 'auditId' | 'timestamp'> & { auditId?: string; timestamp?: string }): void {
-    const raw = safeStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
-    const list: AuditLogEntry[] = raw ? JSON.parse(raw) : [];
     const fullEntry: AuditLogEntry = {
       auditId: entry.auditId || `AUD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       timestamp: entry.timestamp || new Date().toISOString(),
       ...entry
     };
-    list.unshift(fullEntry);
-    safeStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(list.slice(0, 1000)));
+    const list = [fullEntry, ...this.getAuditLogs()].slice(0, 1000);
+    this.writeCached(STORAGE_KEYS.AUDIT_LOGS, list);
     this.notify();
   }
 

@@ -472,6 +472,7 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
                       alt={member.name}
                       className="w-full h-full object-cover object-top"
                       loading="lazy"
+                      decoding="async"
                       onError={(e) => {
                         const target = e.currentTarget;
                         target.style.display = 'none';
@@ -532,6 +533,8 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
                       <img
                         src={exec.image}
                         alt={exec.name}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover object-top"
                         onError={(e) => {
                           const target = e.currentTarget;
@@ -598,6 +601,8 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
                       <img
                         src={exec.image}
                         alt={exec.name}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover object-top"
                         onError={(e) => {
                           const target = e.currentTarget;
@@ -662,6 +667,8 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
                 <img
                   src="/assets/aic_org_chart.jpg"
                   alt="Africa Insurance Company S.C. Organizational Structure"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-auto rounded-xl object-contain max-h-[700px] mx-auto"
                 />
               </div>

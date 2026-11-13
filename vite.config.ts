@@ -12,12 +12,15 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: [
-          'icon.svg',
+          'favicon.ico',
+          'favicon.png',
+          'favicon-32x32.png',
           'apple-touch-icon.png',
           'pwa-192x192.png',
           'pwa-512x512.png',
           'pwa-maskable-512x512.png',
-          'assets/aic_logo.jpg'
+          'assets/opt/aic_logo-240w.webp',
+          'assets/opt/aic_logo-240w.jpg'
         ],
         manifest: {
           id: '/',
@@ -57,7 +60,7 @@ export default defineConfig(() => {
           skipWaiting: true,
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-          globIgnores: ['**/assets/*.mp4', '**/assets/*.webm', '**/assets/*.gif', '**/assets/aistudio/**'],
+          globIgnores: ['**/assets/*.mp4', '**/assets/*.webm', '**/assets/*.gif', '**/assets/*.jpg', '**/assets/opt/*', '**/assets/aistudio/**'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/__/, /^\/api/, /firebaseapp\.com/, /googleapis\.com/],
           runtimeCaching: [

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { store } from '../../services/store';
 import { chapaService } from '../../services/chapa';
 import {
@@ -37,9 +37,12 @@ import {
   Car,
   Briefcase,
   Search,
-  Check
+  Check,
+  Sparkles
 } from 'lucide-react';
 import { ProductDetailPage } from '../public/ProductDetailPage';
+import { DashboardGuidedTour, getTourStorageKey } from '../../components/DashboardGuidedTour';
+import { ResponsiveImage, getCategoryCoverImage } from '../../components/ResponsiveImage';
 import {
   InsurancePolicy,
   InsuranceApplication,
@@ -73,11 +76,17 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
     ? `${customerProfile.address.subcityOrZone}, ${customerProfile.address.city}`
     : 'Addis Ababa, Ethiopia';
 
-  const allPolicies = store.getPolicies().filter((p) => p.customerId === customerId);
-  const allApplications = store.getApplications().filter((a) => a.customerId === customerId);
-  const allPayments = store.getPaymentAttempts().filter((p) => p.customerId === customerId);
-  const allClaims = store.getClaims().filter((c) => c.customerId === customerId);
-  const products = store.getPublishedProducts();
+  const rawPolicies = store.getPolicies();
+  const rawApplications = store.getApplications();
+  const rawPayments = store.getPaymentAttempts();
+  const rawClaims = store.getClaims();
+  const rawProducts = store.getProducts();
+
+  const allPolicies = useMemo(() => rawPolicies.filter((p) => p.customerId === customerId), [rawPolicies, customerId]);
+  const allApplications = useMemo(() => rawApplications.filter((a) => a.customerId === customerId), [rawApplications, customerId]);
+  const allPayments = useMemo(() => rawPayments.filter((p) => p.customerId === customerId), [rawPayments, customerId]);
+  const allClaims = useMemo(() => rawClaims.filter((c) => c.customerId === customerId), [rawClaims, customerId]);
+  const products = useMemo(() => rawProducts.filter((p) => p.publicStatus === 'published'), [rawProducts]);
   const [securityFeedback, setSecurityFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const isNewAppAction = initialAction === 'new_app' || initialAction === 'new-application';
@@ -87,6 +96,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   const [serviceSearch, setServiceSearch] = useState('');
   const [serviceCategory, setServiceCategory] = useState<string>('all');
   const [inspectingProduct, setInspectingProduct] = useState<InsuranceProduct | null>(null);
+  const [tourOpen, setTourOpen] = useState(false);
 
   // Sync user's real Firestore records when entering portal
   useEffect(() => {
@@ -94,6 +104,20 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       syncCustomerWorkspaceFromFirestore(customerId);
     }
   }, [customerId]);
+
+  // First-login guided tour trigger (strictly after signing in)
+  useEffect(() => {
+    if (!customerId || isNewAppAction || typeof window === 'undefined') return;
+    try {
+      const done = window.localStorage.getItem(getTourStorageKey(customerId));
+      if (!done) {
+        const t = window.setTimeout(() => setTourOpen(true), 220);
+        return () => window.clearTimeout(t);
+      }
+    } catch {
+      // Ignore storage restriction
+    }
+  }, [customerId, isNewAppAction]);
 
   // New Application Wizard State
   const [isCreatingApp, setIsCreatingApp] = useState(isNewAppAction);
@@ -518,6 +542,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
           {/* Navigation Links */}
           <nav className="p-3 space-y-1 text-xs font-medium">
             <button
+              data-tour="nav-overview"
               onClick={() => { setActiveTab('dashboard'); setIsCreatingApp(false); setInspectingProduct(null); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
                 activeTab === 'dashboard' && !isCreatingApp ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
@@ -528,6 +553,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             </button>
 
             <button
+              data-tour="nav-services"
               onClick={() => { setActiveTab('services'); setIsCreatingApp(false); setInspectingProduct(null); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
                 activeTab === 'services' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
@@ -548,6 +574,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             </button>
 
             <button
+              data-tour="nav-policies"
               onClick={() => { setActiveTab('policies'); setIsCreatingApp(false); setInspectingProduct(null); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
                 activeTab === 'policies' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
@@ -568,6 +595,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             </button>
 
             <button
+              data-tour="nav-claims"
               onClick={() => { setActiveTab('claims'); setIsCreatingApp(false); setInspectingProduct(null); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
                 activeTab === 'claims' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
@@ -630,18 +658,19 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
         {/* Mobile Navigation Bar */}
         <div className="md:hidden -mx-3 px-3 pb-2.5 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto">
           {[
-            { id: 'dashboard', label: 'Overview' },
-            { id: 'services', label: `Services (${products.length})` },
+            { id: 'dashboard', label: 'Overview', tour: 'nav-overview' },
+            { id: 'services', label: `Services (${products.length})`, tour: 'nav-services' },
             { id: 'applications', label: `Applications (${allApplications.length})` },
-            { id: 'policies', label: `Policies (${allPolicies.length})` },
+            { id: 'policies', label: `Policies (${allPolicies.length})`, tour: 'nav-policies' },
             { id: 'payments', label: 'Payments' },
-            { id: 'claims', label: 'Claims' },
+            { id: 'claims', label: 'Claims', tour: 'nav-claims' },
             { id: 'profile', label: 'Profile & Security' }
           ].map((item) => (
             <button
               key={item.id}
               type="button"
               data-compact="true"
+              data-tour={item.tour}
               onClick={() => {
                 setActiveTab(item.id as any);
                 setIsCreatingApp(false);
@@ -671,17 +700,36 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             </h1>
           </div>
 
-          <button
-            onClick={() => {
-              setInspectingProduct(null);
-              setIsCreatingApp(true);
-              setActiveTab('applications');
-            }}
-            className="bg-[#12366e] hover:bg-[#1a4b8c] text-white text-sm sm:text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 shadow-sm shrink-0 self-start sm:self-auto"
-          >
-            <Plus className="w-4 h-4 text-[#c59b27]" />
-            <span>Apply for New Policy</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            {!tourOpen && (
+              <button
+                type="button"
+                data-compact="true"
+                onClick={() => {
+                  setInspectingProduct(null);
+                  setIsCreatingApp(false);
+                  setActiveTab('dashboard');
+                  setTourOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-[#12366e] text-xs font-semibold px-3 py-2 rounded-lg transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#c59b27]" />
+                <span>Quick Tour</span>
+              </button>
+            )}
+            <button
+              data-tour="cta-apply"
+              onClick={() => {
+                setInspectingProduct(null);
+                setIsCreatingApp(true);
+                setActiveTab('applications');
+              }}
+              className="bg-[#12366e] hover:bg-[#1a4b8c] text-white text-sm sm:text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 shadow-sm shrink-0 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 text-[#c59b27]" />
+              <span>Apply for New Policy</span>
+            </button>
+          </div>
         </div>
 
         <div key={isCreatingApp ? 'create-app' : activeTab} className="aic-view-transition space-y-4 sm:space-y-8">
@@ -689,7 +737,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
         {activeTab === 'dashboard' && !isCreatingApp && (
           <div className="space-y-8">
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div data-tour="overview-kpis" className="grid grid-cols-1 sm:grid-cols-3 gap-5">
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Active Policies</span>
                 <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
@@ -879,41 +927,50 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                 .map((product) => (
                   <div
                     key={product.productId}
-                    className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between gap-4 hover:shadow-md transition-shadow"
+                    className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group"
                   >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-blue-50 text-[#12366e]">
+                    <div>
+                      <div className="relative h-32 w-full bg-slate-200 overflow-hidden border-b border-slate-100">
+                        <ResponsiveImage
+                          src={getCategoryCoverImage(product.productCategory, product.heroImage)}
+                          alt={product.productName}
+                          sizes="(max-width: 767px) 94vw, (max-width: 1023px) 46vw, 28vw"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent pointer-events-none" />
+                        <span className="absolute top-2.5 left-3 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-white/95 text-[#12366e] shadow-sm">
                           {product.productCategory}
                         </span>
-                        <span className="text-[11px] font-mono font-semibold text-slate-700">
+                        <span className="absolute bottom-2 right-3 text-[11px] font-mono font-semibold text-white bg-slate-900/70 backdrop-blur-sm px-2 py-0.5 rounded">
                           From {product.quotationConfiguration.standardMinimumPremiumETB.toLocaleString()} ETB
                         </span>
                       </div>
 
-                      <div>
-                        <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                          {product.productName}
-                        </h3>
-                        <p className="text-xs text-slate-600 mt-1.5 line-clamp-2 leading-relaxed">
-                          {product.shortDescription}
-                        </p>
-                      </div>
-
-                      <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                          Key Coverage Highlights
+                      <div className="p-5 space-y-3">
+                        <div>
+                          <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-[#12366e] transition-colors">
+                            {product.productName}
+                          </h3>
+                          <p className="text-xs text-slate-600 mt-1.5 line-clamp-2 leading-relaxed">
+                            {product.shortDescription}
+                          </p>
                         </div>
-                        {product.benefits.slice(0, 3).map((b, idx) => (
-                          <div key={idx} className="flex items-start gap-1.5 text-[11px] text-slate-700">
-                            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                            <span className="line-clamp-1">{b}</span>
+
+                        <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            Key Coverage Highlights
                           </div>
-                        ))}
+                          {product.benefits.slice(0, 3).map((b, idx) => (
+                            <div key={idx} className="flex items-start gap-1.5 text-[11px] text-slate-700">
+                              <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                              <span className="line-clamp-1">{b}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="pt-3 border-t border-slate-100 flex items-center gap-2">
+                    <div className="px-5 pb-5 pt-3 border-t border-slate-100 flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -1949,6 +2006,18 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
           </div>
         </div>
       )}
+
+      {/* NON-INTRUSIVE FIRST-LOGIN GUIDED TOUR (ONLY INSIDE SIGNED-IN PORTAL) */}
+      <DashboardGuidedTour
+        userId={customerId}
+        isOpen={tourOpen && !viewingPolicy && !checkoutTarget && !isCreatingApp}
+        onClose={() => setTourOpen(false)}
+        onNavigateTab={(tab) => {
+          setInspectingProduct(null);
+          setIsCreatingApp(false);
+          setActiveTab(tab);
+        }}
+      />
     </div>
   );
 };

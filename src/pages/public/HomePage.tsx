@@ -104,7 +104,6 @@ interface Testimonial {
   location: string;
   policyType: string;
   policyCode: string;
-  avatarUrl: string;
   avatarInitials: string;
   rating: number;
   quote: string;
@@ -121,7 +120,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Addis Ababa',
     policyType: 'Commercial Motor Fleet & Transit',
     policyCode: 'AIC-VRF-8924-K92X',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'DA',
     rating: 5,
     quote: 'AIC’s fleet underwriting and instant digital verification give our cross-border logistics team total confidence along the Djibouti corridor. Claims in Adama were settled in 48 hours without delays.',
@@ -136,7 +134,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Hawassa',
     policyType: 'Fire & Commercial Property',
     policyCode: 'AIC-VRF-7120-P44M',
-    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'BT',
     rating: 5,
     quote: 'Operating three regional diagnostic centers requires ironclad property protection. AIC tailored our fire and specialized medical equipment coverage to our exact clinical needs.',
@@ -151,7 +148,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Bahir Dar',
     policyType: 'Industrial All-Risks & Machinery',
     policyCode: 'AIC-VRF-4901-B12N',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'YB',
     rating: 5,
     quote: 'The digital e-policy platform makes renewing our processing plant’s annual coverage seamless. Having tamper-evident SHA-256 codes allowed our bank to confirm our insured status immediately.',
@@ -166,7 +162,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Addis Ababa',
     policyType: 'Group Life & Medical Welfare',
     policyCode: 'AIC-VRF-3382-L89G',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'SG',
     rating: 5,
     quote: 'We onboarded 280 team members onto AIC’s Group Personal Accident and Medical scheme. Staff submit outpatient receipts directly from phones with rapid reimbursement.',
@@ -181,7 +176,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Dire Dawa',
     policyType: 'Goods in Transit & Commercial Truck',
     policyCode: 'AIC-VRF-6219-M55K',
-    avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'MA',
     rating: 5,
     quote: 'As an independent freight hauler carrying grain and steel across the eastern corridor, traffic checkpoints verify my AIC certificate in seconds via code, preventing highway delays.',
@@ -196,7 +190,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Hawassa Industrial Park',
     policyType: 'Industrial Fire & Perils',
     policyCode: 'AIC-VRF-9912-T77A',
-    avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'AW',
     rating: 5,
     quote: 'Operating inside Hawassa Industrial Park requires strict compliance with international buyer safety audits. AIC’s comprehensive perils policy satisfied European apparel buyers immediately.',
@@ -211,7 +204,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Modjo',
     policyType: 'Marine Cargo & Container Transit',
     policyCode: 'AIC-VRF-1845-C62J',
-    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'GT',
     rating: 5,
     quote: 'Managing thousands of shipping containers from Djibouti port to Modjo dry terminal demands instant transit cover notes. Africa Insurance’s automated platform generates verifiable e-policies on demand.',
@@ -226,7 +218,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Adama',
     policyType: 'Professional Medical Indemnity',
     policyCode: 'AIC-VRF-5534-H81R',
-    avatarUrl: 'https://images.unsplash.com/photo-1594824813633-825590987c67?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'SH',
     rating: 5,
     quote: 'Our specialist surgical department relies on AIC for professional liability and medical indemnity. Their claims team understands clinical procedures and provides reassuring defense coverage.',
@@ -241,7 +232,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Addis Ababa',
     policyType: 'Contractors All Risks (CAR)',
     policyCode: 'AIC-VRF-8109-E33K',
-    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'TK',
     rating: 5,
     quote: 'We insured our 14-story commercial tower project under AIC’s Contractors All-Risks policy. Third-party liability and heavy machinery coverage were transparent and fairly priced.',
@@ -256,7 +246,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Jimma',
     policyType: 'Marine Cargo Transit & Warehousing',
     policyCode: 'AIC-VRF-2761-W90Q',
-    avatarUrl: 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'MH',
     rating: 5,
     quote: 'Exporting specialty Yirgacheffe and Jimma coffee beans to German roasters requires unbroken transit coverage. AIC covers our road haulage and sea voyage with zero documentation friction.',
@@ -271,7 +260,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Debre Zeit',
     policyType: 'Public Service Vehicle (PSV) Motor',
     policyCode: 'AIC-VRF-4402-B78V',
-    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'BM',
     rating: 5,
     quote: 'With over 45 inter-city buses connecting central and southern Ethiopia, passenger liability and vehicle comprehensive insurance are essential. AIC has been our trusted partner since 2017.',
@@ -286,7 +274,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Addis Ababa',
     policyType: 'Machinery Breakdown & Perils',
     policyCode: 'AIC-VRF-6378-A19F',
-    avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'HM',
     rating: 5,
     quote: 'When a turbine failure halted our bottling line, AIC’s industrial engineers arrived on site the next morning. Consequential loss coverage helped us maintain payroll during machine repair.',
@@ -301,7 +288,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Dire Dawa',
     policyType: 'Heavy Industrial Equipment & Perils',
     policyCode: 'AIC-VRF-3914-R52D',
-    avatarUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'KB',
     rating: 5,
     quote: 'Heavy quarrying machinery and kilns represent tens of millions of Birr in enterprise value. Africa Insurance’s engineering underwriters provided custom loss prevention guidance.',
@@ -316,7 +302,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Addis Ababa',
     policyType: 'Group Life & Executive Health',
     policyCode: 'AIC-VRF-7840-E21T',
-    avatarUrl: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'RA',
     rating: 5,
     quote: 'Attracting senior software talent in Ethiopia requires top-tier medical and group life protection. AIC’s cashless clinic network in Addis makes employee healthcare stress-free.',
@@ -331,7 +316,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Gondar',
     policyType: 'Heavy Plant, Machinery & Motor Commercial',
     policyCode: 'AIC-VRF-1198-D64S',
-    avatarUrl: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'SD',
     rating: 5,
     quote: 'Our bulldozers and heavy excavators operate in rugged terrain across Amhara region. AIC’s fast claims response and authorized garage repair network kept our downtime minimal.',
@@ -346,7 +330,6 @@ const TESTIMONIALS: Testimonial[] = [
     location: 'Bishoftu',
     policyType: 'Cold-Chain Air Cargo & Transit',
     policyCode: 'AIC-VRF-8547-H99X',
-    avatarUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150&auto=format&fit=crop&q=80',
     avatarInitials: 'TW',
     rating: 5,
     quote: 'Exporting delicate fresh-cut roses via Ethiopian Cargo to European auction markets requires strict temperature-controlled transit policies. AIC understands perishable cold-chain logistics.',
@@ -441,7 +424,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
             return (
               <div
                 key={slide.id}
-                className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                className={`absolute inset-0 transition-opacity duration-500 ease-out ${
                   isSlideActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                 }`}
               >
@@ -452,7 +435,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                       alt={slide.bgAlt}
                       priority={isSlideActive}
                       sizes="100vw"
-                      className="w-full h-full object-cover object-center scale-105 transition-transform duration-7000 ease-out"
+                      className="w-full h-full object-cover object-center"
                     />
                     <video
                       autoPlay
@@ -461,7 +444,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                       playsInline
                       preload="none"
                       poster={getPosterImageUrl(slide.bgImage)}
-                      className="hidden md:block absolute inset-0 w-full h-full object-cover object-center scale-105 pointer-events-none"
+                      className="hidden md:block absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
                     >
                       {slide.bgVideo && <source src={slide.bgVideo} type="video/mp4" />}
                       <source src="/assets/city_traffic_alive.mp4" type="video/mp4" />
@@ -474,7 +457,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                     alt={slide.bgAlt}
                     priority={idx === 0}
                     sizes="100vw"
-                    className="w-full h-full object-cover object-center scale-105 transition-transform duration-7000 ease-out"
+                    className="w-full h-full object-cover object-center"
                   />
                 )}
               </div>
@@ -536,7 +519,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                     navigate('/login');
                   }
                 }}
-                className="bg-white hover:bg-slate-100 text-slate-900 px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl text-xs sm:text-sm font-semibold tracking-tight transition-all shadow-lg hover:shadow-xl flex items-center gap-2 sm:gap-2.5 group whitespace-nowrap cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                className="bg-white/85 hover:bg-white/95 backdrop-blur-md border border-white/80 text-slate-900 px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl text-xs sm:text-sm font-semibold tracking-tight transition-all shadow-lg hover:shadow-xl flex items-center gap-2 sm:gap-2.5 group whitespace-nowrap cursor-pointer"
               >
                 <span>{t('hero.getStarted')}</span>
                 <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:translate-x-1" />
@@ -703,24 +686,8 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                   <div className="space-y-3.5">
                     {/* Author header */}
                     <div className="flex items-center gap-3">
-                      <div className="relative shrink-0 w-11 h-11">
-                        <ResponsiveImage
-                          src={testimonial.avatarUrl}
-                          alt={testimonial.name}
-                          sizes="44px"
-                          width={44}
-                          height={44}
-                          pictureClassName="block w-11 h-11"
-                          className="w-11 h-11 rounded-full object-cover border border-slate-200 shadow-sm"
-                          onFallbackError={(e) => {
-                            const pic = e.currentTarget.closest('picture') as HTMLElement | null;
-                            if (pic) pic.style.display = 'none';
-                            (pic?.nextElementSibling as HTMLElement | null)?.classList.remove('hidden');
-                          }}
-                        />
-                        <div className="hidden w-11 h-11 rounded-full bg-[#12366e] text-white flex items-center justify-center font-bold text-xs border border-slate-200 shadow-sm">
-                          {testimonial.avatarInitials}
-                        </div>
+                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#12366e] to-[#1a4b8c] text-white flex items-center justify-center font-bold text-xs border border-[#c59b27]/40 shadow-sm shrink-0">
+                        {testimonial.avatarInitials}
                       </div>
                       <div className="min-w-0 flex-1">
                         <h4 className="text-sm font-bold text-slate-900 truncate">
@@ -747,9 +714,9 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                       </span>
                     </div>
 
-                    {/* Policy Type chip */}
-                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-50 text-slate-700 text-[10px] font-medium border border-slate-200/70 truncate max-w-full">
-                      <Shield className="w-2.5 h-2.5 text-[#12366e] shrink-0" />
+                    {/* Policy Coverage Line */}
+                    <div className="flex items-center gap-1.5 text-slate-600 text-[11px] font-medium truncate">
+                      <Shield className="w-3 h-3 text-[#12366e] shrink-0" />
                       <span className="truncate">{testimonial.policyType}</span>
                     </div>
 

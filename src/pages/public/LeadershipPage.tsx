@@ -48,7 +48,7 @@ export const BOARD_MEMBERS: BoardMember[] = [
     id: 'aklilu-wubet',
     name: 'Dr. Aklilu Wubet',
     role: 'Chairman of the Board',
-    image: '/assets/board/aklilu_wubet.jpg',
+    image: '/assets/board/aklilu_wubet.jpg?hd=3',
     initials: 'AW',
     category: 'Non-Executive',
     bio: 'Leads the Board of Directors of Africa Insurance Company S.C., overseeing corporate governance, fiduciary compliance, risk appetite, and strategic capital growth toward the ETB 2 Billion capitalization goal.',
@@ -58,7 +58,7 @@ export const BOARD_MEMBERS: BoardMember[] = [
     id: 'alemu-berhe',
     name: 'Ato Alemu Berhe',
     role: 'Vice Chairman of the Board',
-    image: '/assets/board/alemu_berhe.jpg',
+    image: '/assets/board/alemu_berhe.jpg?hd=3',
     initials: 'AB',
     category: 'Non-Executive',
     bio: 'Supports the Chairman in strategic board oversight, long-range institutional development, and continuous engagement with corporate stakeholders.',
@@ -68,7 +68,7 @@ export const BOARD_MEMBERS: BoardMember[] = [
     id: 'getachew-tadesse',
     name: 'Ato Getachew Tadesse',
     role: 'Director',
-    image: '/assets/board/getachew_tadesse.jpg',
+    image: '/assets/board/getachew_tadesse.jpg?hd=3',
     initials: 'GT',
     category: 'Non-Executive',
     bio: 'Provides seasoned governance in national financial regulation, operational risk controls, and shareholder dividend policy.',
@@ -78,7 +78,7 @@ export const BOARD_MEMBERS: BoardMember[] = [
     id: 'abdurahman-abdulbaki',
     name: 'Ato Abdurahman Abdulbaki',
     role: 'Director',
-    image: '/assets/board/abdurahman_abdulbaki.jpg',
+    image: '/assets/board/abdurahman_abdulbaki.jpg?hd=3',
     initials: 'AA',
     category: 'Non-Executive',
     bio: 'Experienced board member contributing to strategic portfolio diversification, asset-liability matching, and solvency margin evaluation.',
@@ -88,7 +88,7 @@ export const BOARD_MEMBERS: BoardMember[] = [
     id: 'birhanu-tadesse',
     name: 'Ato Birhanu Tadesse',
     role: 'Director',
-    image: '/assets/board/birhanu_tadesse.jpg',
+    image: '/assets/board/birhanu_tadesse.jpg?hd=3',
     initials: 'BT',
     category: 'Non-Executive',
     bio: 'Advises the board on commercial underwriting standards, reinsurance security ratings, and nationwide branch network growth.',
@@ -98,7 +98,7 @@ export const BOARD_MEMBERS: BoardMember[] = [
     id: 'enewey-gmedhin',
     name: 'W/ro Enewey G/Medhin',
     role: 'Director',
-    image: '/assets/board/enewey_gmedhin.png',
+    image: '/assets/board/enewey_gmedhin.jpg?hd=3',
     initials: 'EG',
     category: 'Non-Executive',
     bio: 'Brings high-level commercial acumen, corporate social accountability, and human capital empowerment insights to board deliberations.',
@@ -108,7 +108,7 @@ export const BOARD_MEMBERS: BoardMember[] = [
     id: 'sitotawe-bekele',
     name: 'Ato Sitotawe Bekele',
     role: 'Director',
-    image: '/assets/board/sitotawe_bekele.jpg',
+    image: '/assets/board/sitotawe_bekele.jpg?hd=3',
     initials: 'SB',
     category: 'Non-Executive',
     bio: 'Experienced in business leadership and corporate strategy, reinforcing compliance with National Bank of Ethiopia directives.',
@@ -118,7 +118,7 @@ export const BOARD_MEMBERS: BoardMember[] = [
     id: 'genet-argaw',
     name: 'W/ro Genet Argaw',
     role: 'Director',
-    image: '/assets/board/genet_argaw.jpg',
+    image: '/assets/board/genet_argaw.jpg?hd=3',
     initials: 'GA',
     category: 'Non-Executive',
     bio: 'Focuses on sustainable corporate governance, customer protection standards, and client-centric insurance services.',
@@ -128,7 +128,7 @@ export const BOARD_MEMBERS: BoardMember[] = [
     id: 'firdosa-adus',
     name: 'W/ro Firdosa Adus',
     role: 'Director',
-    image: '/assets/board/firdosa_adus.jpg',
+    image: '/assets/board/firdosa_adus.jpg?hd=3',
     initials: 'FA',
     category: 'Non-Executive',
     bio: 'Offers executive acumen in enterprise risk management, underwriting balance, and capital expansion strategies.',
@@ -138,7 +138,7 @@ export const BOARD_MEMBERS: BoardMember[] = [
     id: 'yisak-kebede',
     name: 'Ato Yisak Kebede',
     role: "Company's Secretary",
-    image: '/assets/board/yisak_kebede.jpg',
+    image: '/assets/board/yisak_kebede.jpg?hd=3',
     initials: 'YK',
     category: 'Secretary',
     bio: 'Oversees statutory board secretariat services, shareholder register administration, National Bank of Ethiopia regulatory filings, and general assembly coordination.',
@@ -152,7 +152,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Kiros Jiranie',
     title: 'Managing Director & CEO',
     department: 'Executive Office',
-    image: '/assets/executives/kiros.png',
+    image: '/assets/executives/kiros.jpg?hd=3',
     initials: 'KJ',
     responsibilities: [
       'Nationwide insurance underwriting operations leadership',
@@ -167,7 +167,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Kassahun Begashaw',
     title: 'Deputy Managing Director — Operation',
     department: 'Operations Sector',
-    image: '/assets/executives/kassahun.png',
+    image: '/assets/executives/kassahun.jpg?hd=3',
     initials: 'KB',
     responsibilities: [
       'Directing Underwriting & Nationwide Branch Operations',
@@ -182,7 +182,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Daniel Teweldebrehan',
     title: 'Deputy Managing Director — Resource',
     department: 'Resource & Administration Sector',
-    image: '/assets/executives/daniel.png',
+    image: '/assets/executives/daniel.jpg?hd=3',
     initials: 'DT',
     responsibilities: [
       'Financial Management, investments in bonds, equity shares and real estate',
@@ -197,7 +197,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Branch Operations Leadership',
     title: 'Manager — U/W & Branch Operations Department',
     department: 'Underwriting & Branches',
-    image: '/assets/executives/placeholder.jpg',
+    image: '/assets/executives/placeholder.jpg?hd=3',
     initials: 'BO',
     responsibilities: [
       'Supervising 17+ core branches across Addis Ababa and federal regional capitals',
@@ -210,7 +210,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Tesfaye Girma',
     title: 'Manager — HRM & Property Administration Department',
     department: 'Human Resources & Property',
-    image: '/assets/executives/tesfaye.jpg',
+    image: '/assets/executives/tesfaye.jpg?hd=3',
     initials: 'TG',
     responsibilities: [
       'Talent recruitment, employee relations, and workforce benefits',
@@ -223,7 +223,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Mezmur Hawaz',
     title: 'Manager — Reinsurance Service',
     department: 'Reinsurance Service',
-    image: '/assets/executives/mezmur.png',
+    image: '/assets/executives/mezmur.jpg?hd=3',
     initials: 'MH',
     responsibilities: [
       'Treaty and facultative reinsurance placement with premier global reinsurers (Africa Re, Ethiopian Re, Zep Re)',
@@ -236,7 +236,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Tesema Hidetu',
     title: 'Manager — Internal Audit Department',
     department: 'Internal Audit',
-    image: '/assets/executives/tesema.jpg',
+    image: '/assets/executives/tesema.jpg?hd=3',
     initials: 'TH',
     responsibilities: [
       'Independent internal audit reporting directly to the Board Audit Committee',
@@ -249,7 +249,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Yohaness Hailu',
     title: 'Manager — Claims Management Department',
     department: 'Claims Management',
-    image: '/assets/executives/yohannes.png',
+    image: '/assets/executives/yohannes.jpg?hd=3',
     initials: 'YH',
     responsibilities: [
       'Prompt, equitable settlement of motor, fire, marine, and engineering claims',
@@ -262,7 +262,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Michael Mesfin',
     title: 'Manager — Legal Service',
     department: 'Legal Affairs',
-    image: '/assets/executives/michael.jpg',
+    image: '/assets/executives/michael.jpg?hd=3',
     initials: 'MM',
     responsibilities: [
       'Corporate legal advisory, litigation management, and subrogation recoveries',
@@ -275,7 +275,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Alemseged Meresa',
     title: 'Manager — Life & Health Insurance Department',
     department: 'Life & Health',
-    image: '/assets/executives/alemseged.png',
+    image: '/assets/executives/alemseged.jpg?hd=3',
     initials: 'AM',
     responsibilities: [
       'Group and Individual Term Life, Endowment, and Education policies',
@@ -288,7 +288,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'W/ro Kelemwork Tadesse',
     title: 'Manager — Finance and Investment Department',
     department: 'Finance & Investment',
-    image: '/assets/executives/kelemwork.jpg',
+    image: '/assets/executives/kelemwork.jpg?hd=3',
     initials: 'KT',
     responsibilities: [
       'Financial accounting, IFRS reporting, and statutory balance sheet preparation',
@@ -301,7 +301,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Estifanos Emiru',
     title: 'Manager — Engineering Service',
     department: 'Engineering & Surveying',
-    image: '/assets/executives/estifanos.png',
+    image: '/assets/executives/estifanos.jpg?hd=3',
     initials: 'EE',
     responsibilities: [
       'Technical engineering risk inspection for construction & machinery breakdown',
@@ -314,7 +314,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'W/ro Haney Kassa',
     title: 'Manager — Risk Management & AML-CFT & Compliance',
     department: 'Risk & Compliance',
-    image: '/assets/executives/haney.jpg',
+    image: '/assets/executives/haney.jpg?hd=3',
     initials: 'HK',
     responsibilities: [
       'Anti-Money Laundering & Combating Financing of Terrorism (AML/CFT) frameworks',
@@ -327,7 +327,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Bedilu Mekonnen',
     title: 'Manager — Marketing and CRM Department',
     department: 'Marketing & CRM',
-    image: '/assets/executives/bedilu.png',
+    image: '/assets/executives/bedilu.jpg?hd=3',
     initials: 'BM',
     responsibilities: [
       'Brand positioning, corporate communications, and digital channels',
@@ -340,7 +340,7 @@ export const EXECUTIVE_MANAGERS: ExecutiveManager[] = [
     name: 'Ato Dejene Megersa',
     title: 'Manager — ICT Department',
     department: 'Information & Communications Tech',
-    image: '/assets/executives/dejene.png',
+    image: '/assets/executives/dejene.jpg?hd=3',
     initials: 'DM',
     responsibilities: [
       'Core insurance management software infrastructure and cybersecurity',
@@ -399,10 +399,10 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
 
         {/* Tab Switcher & Search Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-200 pb-4">
-          <div className="flex items-center gap-2 p-1 bg-slate-200/80 rounded-xl w-full sm:w-auto">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2 p-1 bg-slate-200/80 rounded-xl w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('board')}
-              className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === 'board'
                   ? 'bg-white text-[#12366e] shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -412,7 +412,7 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
             </button>
             <button
               onClick={() => setActiveTab('executives')}
-              className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === 'executives'
                   ? 'bg-white text-[#12366e] shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -422,7 +422,7 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
             </button>
             <button
               onClick={() => setActiveTab('structure')}
-              className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`w-full sm:w-auto sm:flex-initial px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === 'structure'
                   ? 'bg-white text-[#12366e] shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -440,7 +440,7 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={`Search ${activeTab === 'board' ? 'directors' : 'executive managers'}...`}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#12366e] focus:border-transparent"
+                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#12366e] focus:border-transparent"
               />
             </div>
           )}
@@ -652,7 +652,7 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
                   </p>
                 </div>
                 <a
-                  href="/assets/aic_org_chart.jpg"
+                  href="/assets/aic_org_chart.jpg?hd=3"
                   target="_blank"
                   rel="noreferrer"
                   className="bg-[#12366e] hover:bg-[#184486] text-white px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm transition-all shrink-0"
@@ -665,7 +665,7 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
               {/* Chart Image Viewer */}
               <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-white p-2">
                 <img
-                  src="/assets/aic_org_chart.jpg"
+                  src="/assets/aic_org_chart.jpg?hd=3"
                   alt="Africa Insurance Company S.C. Organizational Structure"
                   loading="lazy"
                   decoding="async"
@@ -726,10 +726,24 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
                 <div className="flex items-center gap-4">
                   <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-md shrink-0">
                     <img
+                      key={selectedMember.id}
                       src={selectedMember.image}
                       alt={selectedMember.name}
+                      decoding="async"
                       className="w-full h-full object-cover object-top"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          const fallback = parent.querySelector('.fallback-initials');
+                          if (fallback) fallback.classList.remove('hidden');
+                        }
+                      }}
                     />
+                    <div className="fallback-initials hidden absolute inset-0 flex items-center justify-center bg-[#12366e] text-white font-bold text-xl">
+                      {selectedMember.initials}
+                    </div>
                   </div>
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#c59b27]">

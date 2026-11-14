@@ -137,13 +137,14 @@ export function getDestinationForAccount(user: UserAccount, intendedRedirect?: s
   }
   if (intendedRedirect && intendedRedirect !== '/login' && intendedRedirect !== '/register') {
     // Prevent non-privileged users from redirecting into privileged workspaces
-    if (intendedRedirect.startsWith('/admin') && user.accountType !== 'admin') return '/portal';
+    if (intendedRedirect.startsWith('/admin') && !['admin', 'operator', 'finance'].includes(user.accountType)) return '/portal';
     if (intendedRedirect.startsWith('/staff') && !['staff', 'underwriter', 'admin'].includes(user.accountType)) return '/portal';
     if (intendedRedirect.startsWith('/operator') && !['operator', 'admin'].includes(user.accountType)) return '/portal';
     return intendedRedirect;
   }
   switch (user.accountType) {
     case 'admin':
+    case 'finance':
       return '/admin';
     case 'underwriter':
     case 'staff':

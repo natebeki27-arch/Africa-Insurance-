@@ -1,17 +1,22 @@
 import React from 'react';
 import { store } from '../services/store';
 import { UserRole } from '../types/insurance';
-import { ShieldCheck, User, Briefcase, FileCheck } from 'lucide-react';
+import { ShieldCheck, User, Briefcase, FileCheck, CreditCard } from 'lucide-react';
 
-export const RoleSwitcher: React.FC = () => {
+interface RoleSwitcherProps {
+  navigate?: (path: string) => void;
+}
+
+export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ navigate }) => {
   const currentUser = store.getCurrentUser();
   const currentRole = currentUser?.accountType || 'admin';
 
-  const roles: { role: UserRole; label: string; icon: React.ReactNode; desc: string }[] = [
-    { role: 'admin', label: 'Administrator', icon: <ShieldCheck className="w-3.5 h-3.5" />, desc: 'Control Centre, CMS, CRM & Audits' },
-    { role: 'underwriter', label: 'Underwriter / Staff', icon: <FileCheck className="w-3.5 h-3.5" />, desc: 'Review, Quotations & Issuance' },
-    { role: 'operator', label: 'Sales Operator', icon: <Briefcase className="w-3.5 h-3.5" />, desc: 'Assisted Onboarding & Training' },
-    { role: 'customer', label: 'Customer', icon: <User className="w-3.5 h-3.5" />, desc: 'My Policies, Applications & Pay' }
+  const roles: { role: UserRole; label: string; icon: React.ReactNode; desc: string; route: string }[] = [
+    { role: 'admin', label: 'Administrator', icon: <ShieldCheck className="w-3.5 h-3.5" />, desc: 'Full Control, Onboarding & Audits', route: '/admin' },
+    { role: 'operator', label: 'Operator', icon: <Briefcase className="w-3.5 h-3.5" />, desc: 'Full Edit Access (No Employee Onboarding)', route: '/admin' },
+    { role: 'finance', label: 'Finance', icon: <CreditCard className="w-3.5 h-3.5" />, desc: 'Paid Transactions, Filter & Export (Read-Only Policies)', route: '/admin' },
+    { role: 'underwriter', label: 'Underwriter / Staff', icon: <FileCheck className="w-3.5 h-3.5" />, desc: 'Review, Quotations & Issuance', route: '/staff' },
+    { role: 'customer', label: 'Customer', icon: <User className="w-3.5 h-3.5" />, desc: 'My Policies, Applications & Pay', route: '/portal' }
   ];
 
   return (
@@ -30,7 +35,12 @@ export const RoleSwitcher: React.FC = () => {
           return (
             <button
               key={item.role}
-              onClick={() => store.switchRole(item.role)}
+              onClick={() => {
+                store.switchRole(item.role);
+                if (navigate) {
+                  navigate(item.route);
+                }
+              }}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
                 isActive
                   ? 'bg-[#c59b27] text-[#0c2550] font-semibold shadow-sm'

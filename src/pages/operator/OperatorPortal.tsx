@@ -21,6 +21,7 @@ import {
   TrainingCourse,
   TrainingProgress
 } from '../../types/insurance';
+import { PlatformGuideModule } from '../../components/PlatformGuideModule';
 
 interface OperatorPortalProps {
   navigate: (route: string) => void;
@@ -45,8 +46,12 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
   const progressList = store.getTrainingProgress(currentUser?.uid || 'usr-op-001');
   const products = store.getPublishedProducts();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'new_customer' | 'applications' | 'training' | 'manuals'>(
-    initialAction === 'new_customer' ? 'new_customer' : 'overview'
+  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'new_customer' | 'applications' | 'training' | 'manuals' | 'guide'>(
+    initialAction === 'new_customer'
+      ? 'new_customer'
+      : initialAction === 'new_app'
+        ? 'applications'
+        : 'overview'
   );
 
   // Search customer state
@@ -68,9 +73,10 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
     consentFormRef: ''
   });
   const [onboardSuccess, setOnboardSuccess] = useState<string | null>(null);
+  const [onboardError, setOnboardError] = useState<string | null>(null);
 
   // Assisted Application Creation State
-  const [isCreatingApp, setIsCreatingApp] = useState(false);
+  const [isCreatingApp, setIsCreatingApp] = useState(initialAction === 'new_app');
   const [appCustomerId, setAppCustomerId] = useState(allCustomers[0]?.customerId || '');
   const [appProductId, setAppProductId] = useState(initialProductId || products[0]?.productId || '');
   const [appAnswers, setAppAnswers] = useState<Record<string, any>>({});
@@ -101,14 +107,18 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
 
   const handleRegisterAssistedCustomer = (e: React.FormEvent) => {
     e.preventDefault();
+    setOnboardError(null);
     if (!assistedForm.customerConsentSigned) {
-      alert('Strict Rule: An operator cannot register a customer without signed customer consent.');
+      setOnboardError('Strict Rule: An operator cannot register a customer without signed customer consent.');
       return;
     }
 
     // Check operator self-contact rule
-    if (assistedForm.phone === currentOperator.phone || assistedForm.email === currentOperator.email) {
-      alert('Security Violation: Operators may never substitute their personal phone or email for a customer profile.');
+    if (
+      assistedForm.phone.trim() === currentOperator.phone.trim() ||
+      assistedForm.email.trim().toLowerCase() === currentOperator.email.trim().toLowerCase()
+    ) {
+      setOnboardError('Security Violation: Operators may never substitute their personal phone or email for a customer profile.');
       return;
     }
 
@@ -121,13 +131,13 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
       customerNumber: custNumber,
       customerType: 'individual',
       personalInformation: {
-        fullName: `${assistedForm.firstName} ${assistedForm.lastName}`,
+        fullName: `${assistedForm.firstName} ${assistedForm.lastName}`.trim(),
         idType: assistedForm.idType,
         idNumberMasked: `ETH-****-${assistedForm.idNumber.slice(-4) || '7891'}`
       },
       contactInformation: {
-        primaryPhone: assistedForm.phone,
-        email: assistedForm.email,
+        primaryPhone: assistedForm.phone.trim(),
+        email: assistedForm.email.trim(),
         preferredLanguage: 'amharic'
       },
       address: {
@@ -146,9 +156,8 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
 
     store.saveCustomer(newCustomer);
 
-    // Update operator performance summary
-    currentOperator.performanceSummary.totalAssistedOnboarded += 1;
-    store.saveOperator(currentOperator);
+    // Update operator performance summary cleanly
+    store.recordOperatorActivity(currentOperator.operatorId, 'customer');
 
     store.logAudit({
       actorUid: currentUser?.uid || 'OP',
@@ -162,6 +171,18 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
       correlationId: `OP-REG-${Date.now()}`
     });
 
+    setAssistedForm({
+      firstName: '',
+      lastName: '',
+      phone: '',
+      email: '',
+      idType: 'national_id',
+      idNumber: '',
+      city: 'Addis Ababa',
+      subcity: 'Kirkos',
+      customerConsentSigned: false,
+      consentFormRef: ''
+    });
     setOnboardSuccess(`Customer ${newCustomer.personalInformation.fullName} (${custNumber}) registered successfully!`);
     setTimeout(() => {
       setOnboardSuccess(null);
@@ -203,8 +224,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
 
     store.saveApplication(newApp);
 
-    currentOperator.performanceSummary.totalApplicationsSubmitted += 1;
-    store.saveOperator(currentOperator);
+    store.recordOperatorActivity(currentOperator.operatorId, 'application');
 
     store.logAudit({
       actorUid: currentUser?.uid || 'OP',
@@ -255,8 +275,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
     store.saveTrainingProgress(prog);
 
     if (isPassed) {
-      currentOperator.trainingStatus = 'certified';
-      store.saveOperator(currentOperator);
+      store.recordOperatorActivity(currentOperator.operatorId, 'certified');
     }
   };
 
@@ -335,6 +354,21 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
               <BookOpen className="w-4 h-4 text-[#c59b27]" />
               <span>Sales Guidelines & Manuals</span>
             </button>
+
+            <div className="pt-3 mt-3 border-t border-slate-100 space-y-1">
+              <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                System Docs
+              </div>
+              <button
+                onClick={() => { setActiveTab('guide'); setIsCreatingApp(false); setActiveCourse(null); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'guide' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <FileText className="w-4 h-4 text-[#c59b27]" />
+                <span>Platform Guide</span>
+              </button>
+            </div>
           </nav>
         </div>
 
@@ -358,9 +392,11 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'customers', label: 'Customers' },
+            { id: 'new_customer', label: 'Register' },
             { id: 'applications', label: 'Applications' },
             { id: 'training', label: 'Training' },
-            { id: 'manuals', label: 'Manuals' }
+            { id: 'manuals', label: 'Manuals' },
+            { id: 'guide', label: 'Platform Guide' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -582,6 +618,13 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
               <h3 className="text-base font-bold text-[#12366e]">Operator-Assisted Customer Registration</h3>
               <p className="text-xs text-slate-500">Every assisted registration is attributed to Operator ID: {operatorId} and Branch: {currentOperator.branchId}.</p>
             </div>
+
+            {onboardError && (
+              <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{onboardError}</span>
+              </div>
+            )}
 
             {onboardSuccess && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs font-semibold flex items-center gap-2">
@@ -1040,6 +1083,24 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
               </div>
             </div>
           </div>
+        )}
+
+        {/* TAB 7: PLATFORM SYSTEM GUIDE & DOCUMENTATION */}
+        {activeTab === 'guide' && (
+          <PlatformGuideModule
+            role="operator"
+            workspace="operator"
+            userId={currentUser?.uid || operatorId}
+            onQuickNavigate={({ tab, route }) => {
+              if (route) {
+                navigate(route);
+              } else if (tab) {
+                setIsCreatingApp(false);
+                setActiveCourse(null);
+                setActiveTab(tab as any);
+              }
+            }}
+          />
         )}
         </div>
       </main>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { store } from '../../services/store';
 import { chapaService } from '../../services/chapa';
 import {
@@ -34,8 +34,12 @@ import {
   Download,
   Eye,
   FileCheck2,
-  FolderOpen
+  FolderOpen,
+  BookOpen,
+  UserPlus,
+  Filter
 } from 'lucide-react';
+import { PlatformGuideModule } from '../../components/PlatformGuideModule';
 import {
   InsuranceProduct,
   CustomerProfile,
@@ -54,13 +58,60 @@ interface AdminControlCentreProps {
 }
 
 export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate }) => {
-  const [activeTab, setActiveTab] = useState<
-    'overview' | 'content' | 'documents' | 'subscribers' | 'products' | 'customers' | 'operators' | 'policies' | 'payments' | 'emails' | 'audit'
-  >('overview');
+  const currentUser = store.getCurrentUser();
+  const currentRole = currentUser?.accountType || 'admin';
+  const isAdmin = currentRole === 'admin';
+  const isOperator = currentRole === 'operator';
+  const isFinance = currentRole === 'finance';
+
+  // Role Permissions Matrix
+  const canOnboardEmployees = isAdmin;
+  const canEditOperations = isAdmin || isOperator;
+  const canEditPolicies = isAdmin || isOperator;
+
+  type AdminTab =
+    | 'overview'
+    | 'content'
+    | 'documents'
+    | 'subscribers'
+    | 'products'
+    | 'customers'
+    | 'operators'
+    | 'policies'
+    | 'payments'
+    | 'emails'
+    | 'audit'
+    | 'guide';
+
+  const allowedTabs: AdminTab[] = isFinance
+    ? ['overview', 'payments', 'policies', 'audit', 'guide']
+    : [
+        'overview',
+        'content',
+        'documents',
+        'subscribers',
+        'products',
+        'customers',
+        'operators',
+        'policies',
+        'payments',
+        'emails',
+        'audit',
+        'guide'
+      ];
+
+  const [activeTab, setActiveTab] = useState<AdminTab>(isFinance ? 'payments' : 'overview');
+
+  useEffect(() => {
+    if (!allowedTabs.includes(activeTab)) {
+      setActiveTab(isFinance ? 'payments' : 'overview');
+    }
+  }, [currentRole]);
 
   const products = store.getProducts();
   const customers = store.getCustomers();
   const operators = store.getOperators();
+  const staffMembers = store.getStaff();
   const policies = store.getPolicies();
   const applications = store.getApplications();
   const paymentAttempts = store.getPaymentAttempts();
@@ -72,6 +123,35 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
   const [subscriberSearch, setSubscriberSearch] = useState('');
   const [newManualSubEmail, setNewManualSubEmail] = useState('');
   const [newManualSubName, setNewManualSubName] = useState('');
+
+  // Inline confirmation state (iFrame-safe replacement for browser confirm())
+  const [confirmDeleteDocId, setConfirmDeleteDocId] = useState<string | null>(null);
+  const [confirmArchiveProductId, setConfirmArchiveProductId] = useState<string | null>(null);
+
+  // Employee Onboarding State (Admin Only)
+  const [showOnboardForm, setShowOnboardForm] = useState(false);
+  const [employeeForm, setEmployeeForm] = useState({
+    name: '',
+    email: '',
+    phone: '+251 ',
+    role: 'operator' as 'operator' | 'finance' | 'underwriter',
+    branchId: 'BR-ADDIS-HQ'
+  });
+  const [employeeFeedback, setEmployeeFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Policy Edit State (Admin & Operator only — strictly blocked for Finance)
+  const [editingPolicy, setEditingPolicy] = useState<InsurancePolicy | null>(null);
+  const [policyFeedback, setPolicyFeedback] = useState<string | null>(null);
+
+  // Finance / Payment Ledger Filter & Export State
+  const [txSearch, setTxSearch] = useState('');
+  const [txStatusFilter, setTxStatusFilter] = useState<'all' | 'successful' | 'pending' | 'failed'>('all');
+  const [txVerifyFilter, setTxVerifyFilter] = useState<'all' | 'verified_server' | 'unverified' | 'failed_verification'>('all');
+  const [txDateFrom, setTxDateFrom] = useState('');
+  const [txDateTo, setTxDateTo] = useState('');
+  const [txMinAmount, setTxMinAmount] = useState('');
+  const [txMaxAmount, setTxMaxAmount] = useState('');
+  const [txExportFeedback, setTxExportFeedback] = useState<string | null>(null);
 
   // Official Policy Documents Management State
   const [adminDocs, setAdminDocs] = useState<AdminUploadedDocument[]>(() => store.getAdminDocuments());
@@ -359,10 +439,11 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
   };
 
   const handleDeleteDoc = (docId: string, title: string) => {
-    if (confirm(`Are you sure you want to delete the official document "${title}"? It will be immediately unlinked from public policy pages.`)) {
-      store.deleteAdminDocument(docId);
-      setAdminDocs(store.getAdminDocuments());
-    }
+    store.deleteAdminDocument(docId);
+    setAdminDocs(store.getAdminDocuments());
+    setConfirmDeleteDocId(null);
+    setDocSavedFeedback(`Document "${title}" deleted and unlinked from public product pages.`);
+    setTimeout(() => setDocSavedFeedback(null), 2500);
   };
 
   const handleDownloadDoc = (doc: AdminUploadedDocument) => {
@@ -436,14 +517,264 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
   };
 
   const handleArchiveProduct = (productId: string) => {
-    if (confirm('Are you sure you want to archive this product? Active applications and issued policies will retain historical references.')) {
-      store.archiveProduct(productId);
-    }
+    store.archiveProduct(productId);
+    setConfirmArchiveProductId(null);
+    setProductSavedFeedback('Product archived cleanly. Existing active policies remain intact.');
+    setTimeout(() => setProductSavedFeedback(null), 2500);
   };
 
   const handleToggleOperator = (opId: string, currentStatus: string) => {
+    if (!canOnboardEmployees) return;
     const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
     store.toggleOperatorStatus(opId, newStatus);
+  };
+
+  const handleToggleStaff = (staffId: string, currentStatus: string) => {
+    if (!canOnboardEmployees) return;
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    store.toggleStaffStatus(staffId, newStatus);
+  };
+
+  const handleOnboardEmployee = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canOnboardEmployees) {
+      setEmployeeFeedback({ type: 'error', text: 'Only Administrators may onboard new employees.' });
+      return;
+    }
+    const res = store.onboardEmployee(employeeForm);
+    setEmployeeFeedback({ type: res.success ? 'success' : 'error', text: res.message });
+    if (res.success) {
+      setEmployeeForm({ name: '', email: '', phone: '+251 ', role: 'operator', branchId: 'BR-ADDIS-HQ' });
+      setShowOnboardForm(false);
+    }
+    setTimeout(() => setEmployeeFeedback(null), 3500);
+  };
+
+  const handleSavePolicyEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canEditPolicies || !editingPolicy) return;
+    const res = store.savePolicy(editingPolicy);
+    setPolicyFeedback(res.message);
+    if (res.success) {
+      setEditingPolicy(null);
+    }
+    setTimeout(() => setPolicyFeedback(null), 3000);
+  };
+
+  // Enrich & filter payment transactions cleanly
+  const enrichedTransactions = useMemo(() => {
+    return paymentAttempts.map((tx) => {
+      const linkedPolicy = policies.find(
+        (p) =>
+          p.applicationId === tx.applicationId ||
+          p.paymentReference === tx.providerReference ||
+          p.paymentReference === tx.merchantReference
+      );
+      const linkedCustomer = customers.find(
+        (c) => c.customerId === tx.customerId || c.authUid === tx.customerId
+      );
+      const linkedApp = applications.find((a) => a.applicationId === tx.applicationId);
+
+      return {
+        ...tx,
+        customerName:
+          linkedCustomer?.personalInformation.fullName ||
+          linkedPolicy?.customerName ||
+          linkedApp?.customerName ||
+          tx.customerId,
+        policyNumber: linkedPolicy?.policyNumber || 'Pending Issuance',
+        productName: linkedPolicy?.productName || linkedApp?.productName || 'Insurance Premium'
+      };
+    });
+  }, [paymentAttempts, policies, customers, applications]);
+
+  const filteredTransactions = useMemo(() => {
+    const q = txSearch.trim().toLowerCase();
+    const minVal = txMinAmount ? parseFloat(txMinAmount) : null;
+    const maxVal = txMaxAmount ? parseFloat(txMaxAmount) : null;
+
+    return enrichedTransactions.filter((tx) => {
+      if (txStatusFilter !== 'all' && tx.paymentStatus !== txStatusFilter) return false;
+      if (txVerifyFilter !== 'all' && tx.verificationStatus !== txVerifyFilter) return false;
+      if (minVal !== null && Number.isFinite(minVal) && tx.amountETB < minVal) return false;
+      if (maxVal !== null && Number.isFinite(maxVal) && tx.amountETB > maxVal) return false;
+
+      const txDate = (tx.verifiedAt || tx.createdAt || '').slice(0, 10);
+      if (txDateFrom && txDate && txDate < txDateFrom) return false;
+      if (txDateTo && txDate && txDate > txDateTo) return false;
+
+      if (q) {
+        const matches =
+          tx.merchantReference.toLowerCase().includes(q) ||
+          (tx.providerReference || '').toLowerCase().includes(q) ||
+          tx.paymentAttemptId.toLowerCase().includes(q) ||
+          tx.customerId.toLowerCase().includes(q) ||
+          tx.customerName.toLowerCase().includes(q) ||
+          tx.policyNumber.toLowerCase().includes(q) ||
+          tx.productName.toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }, [enrichedTransactions, txSearch, txStatusFilter, txVerifyFilter, txDateFrom, txDateTo, txMinAmount, txMaxAmount]);
+
+  const filteredPaidTotalETB = useMemo(
+    () =>
+      filteredTransactions
+        .filter((t) => t.paymentStatus === 'successful')
+        .reduce((sum, t) => sum + (t.amountETB || 0), 0),
+    [filteredTransactions]
+  );
+
+  const filteredPaidCount = useMemo(
+    () => filteredTransactions.filter((t) => t.paymentStatus === 'successful').length,
+    [filteredTransactions]
+  );
+
+  const escapeCsvCell = (val: string | number | undefined | null): string => {
+    const str = String(val ?? '');
+    if (/[",\n\r]/.test(str)) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const triggerDownloadFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportTransactionsCsv = () => {
+    const headers = [
+      'Payment ID',
+      'Merchant Reference',
+      'Provider Reference',
+      'Customer Name',
+      'Customer ID',
+      'Policy Number',
+      'Product',
+      'Amount (ETB)',
+      'Currency',
+      'Payment Status',
+      'Verification Status',
+      'Verified At',
+      'Created At'
+    ];
+    const rows = filteredTransactions.map((tx) =>
+      [
+        tx.paymentAttemptId,
+        tx.merchantReference,
+        tx.providerReference || '',
+        tx.customerName,
+        tx.customerId,
+        tx.policyNumber,
+        tx.productName,
+        tx.amountETB,
+        tx.currency,
+        tx.paymentStatus,
+        tx.verificationStatus,
+        tx.verifiedAt || '',
+        tx.createdAt
+      ]
+        .map(escapeCsvCell)
+        .join(',')
+    );
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const dateStamp = new Date().toISOString().split('T')[0];
+    triggerDownloadFile(csvContent, `aic-transactions-${dateStamp}.csv`, 'text/csv;charset=utf-8;');
+
+    store.logAudit({
+      actorUid: currentUser?.uid || 'SYSTEM',
+      actorName: currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Staff',
+      actorRole: currentRole,
+      action: 'FINANCE_DATA_EXPORTED',
+      resourceType: 'payment',
+      resourceId: `CSV-${dateStamp}`,
+      reason: `Exported ${filteredTransactions.length} transaction records as CSV`,
+      correlationId: `EXP-CSV-${Date.now()}`
+    });
+    setTxExportFeedback(`Exported ${filteredTransactions.length} transactions to CSV.`);
+    setTimeout(() => setTxExportFeedback(null), 3000);
+  };
+
+  const handleExportTransactionsJson = () => {
+    const dateStamp = new Date().toISOString().split('T')[0];
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      exportedBy: currentUser?.email || currentRole,
+      role: currentRole,
+      totalRecords: filteredTransactions.length,
+      paidTotalETB: filteredPaidTotalETB,
+      transactions: filteredTransactions
+    };
+    triggerDownloadFile(
+      JSON.stringify(payload, null, 2),
+      `aic-transactions-${dateStamp}.json`,
+      'application/json;charset=utf-8;'
+    );
+
+    store.logAudit({
+      actorUid: currentUser?.uid || 'SYSTEM',
+      actorName: currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Staff',
+      actorRole: currentRole,
+      action: 'FINANCE_DATA_EXPORTED',
+      resourceType: 'payment',
+      resourceId: `JSON-${dateStamp}`,
+      reason: `Exported ${filteredTransactions.length} transaction records as JSON`,
+      correlationId: `EXP-JSON-${Date.now()}`
+    });
+    setTxExportFeedback(`Exported ${filteredTransactions.length} transactions to JSON.`);
+    setTimeout(() => setTxExportFeedback(null), 3000);
+  };
+
+  const handleExportPoliciesCsv = () => {
+    const headers = [
+      'Policy Number',
+      'Verification Code',
+      'Customer Name',
+      'Product',
+      'Insured Subject',
+      'Premium (ETB)',
+      'Start Date',
+      'Expiry Date',
+      'Status'
+    ];
+    const rows = policies.map((p) =>
+      [
+        p.policyNumber,
+        p.verificationCode,
+        p.customerName,
+        p.productName,
+        p.insuredSubject,
+        p.totalPremiumETB,
+        p.startDate,
+        p.expiryDate,
+        p.policyStatus
+      ]
+        .map(escapeCsvCell)
+        .join(',')
+    );
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const dateStamp = new Date().toISOString().split('T')[0];
+    triggerDownloadFile(csvContent, `aic-policies-register-${dateStamp}.csv`, 'text/csv;charset=utf-8;');
+
+    store.logAudit({
+      actorUid: currentUser?.uid || 'SYSTEM',
+      actorName: currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Staff',
+      actorRole: currentRole,
+      action: 'POLICIES_EXPORTED_CSV',
+      resourceType: 'policy',
+      resourceId: `POL-CSV-${dateStamp}`,
+      reason: `Exported ${policies.length} policies as CSV`,
+      correlationId: `POL-EXP-${Date.now()}`
+    });
   };
 
   const handleSendTestEmail = (template: EmailTemplate) => {
@@ -475,142 +806,187 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
 
   return (
     <div className="min-h-screen bg-slate-50 flex overflow-x-hidden">
-      {/* Administrator Persistent Sidebar (Loom Command Centre Architecture) */}
+      {/* Role-Aware Persistent Sidebar */}
       <aside className="w-64 bg-gradient-to-b from-[#0c2550] to-[#0e2a58] text-slate-300 flex flex-col justify-between shrink-0 hidden md:flex border-r border-[#184486]/40">
         <div>
           {/* Workspace Title */}
           <div className="p-5 border-b border-[#184486]/30 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-[#c59b27] text-[#0c2550] flex items-center justify-center font-bold text-sm shadow">
-              <Shield className="w-5 h-5" />
+              {isFinance ? <CreditCard className="w-5 h-5" /> : <Shield className="w-5 h-5" />}
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white leading-tight">Admin Control</h2>
-              <span className="text-[11px] text-slate-300 font-mono">AIC Central Console</span>
+              <h2 className="text-sm font-bold text-white leading-tight">
+                {isFinance ? 'Finance Ledger' : isOperator ? 'Operator Console' : 'Admin Control'}
+              </h2>
+              <span className="text-[11px] text-slate-300 font-mono">
+                {isFinance ? 'Treasury & Reconciliation' : isOperator ? 'Full Ops (No Onboarding)' : 'AIC Central Console'}
+              </span>
             </div>
           </div>
 
           <nav className="p-3 space-y-1 text-xs font-medium">
-            <button
-              onClick={() => { setActiveTab('overview'); setIsEditingProduct(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                activeTab === 'overview' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
-              }`}
-            >
-              <Layers className="w-4 h-4" />
-              <span>Real Database Metrics</span>
-            </button>
+            {allowedTabs.includes('overview') && (
+              <button
+                onClick={() => { setActiveTab('overview'); setIsEditingProduct(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'overview' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+                <span>Real Database Metrics</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => { setActiveTab('content'); setIsEditingProduct(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                activeTab === 'content' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
-              }`}
-            >
-              <Globe className="w-4 h-4" />
-              <span>Website Content & CMS</span>
-            </button>
+            {allowedTabs.includes('content') && (
+              <button
+                onClick={() => { setActiveTab('content'); setIsEditingProduct(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'content' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <Globe className="w-4 h-4" />
+                <span>Website Content & CMS</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => { setActiveTab('subscribers'); setIsEditingProduct(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                activeTab === 'subscribers' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
-              }`}
-            >
-              <Mail className="w-4 h-4" />
-              <span>Newsletter Subscribers ({subscribers.length})</span>
-            </button>
+            {allowedTabs.includes('subscribers') && (
+              <button
+                onClick={() => { setActiveTab('subscribers'); setIsEditingProduct(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'subscribers' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <Mail className="w-4 h-4" />
+                <span>Newsletter Subscribers ({subscribers.length})</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => { setActiveTab('documents'); setIsEditingProduct(false); setIsEditingDoc(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                activeTab === 'documents' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
-              }`}
-            >
-              <FileCheck2 className="w-4 h-4" />
-              <span>Policy Documents ({adminDocs.length})</span>
-            </button>
+            {allowedTabs.includes('documents') && (
+              <button
+                onClick={() => { setActiveTab('documents'); setIsEditingProduct(false); setIsEditingDoc(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'documents' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <FileCheck2 className="w-4 h-4" />
+                <span>Policy Documents ({adminDocs.length})</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => { setActiveTab('products'); setIsEditingProduct(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                activeTab === 'products' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
-              }`}
-            >
-              <Layers className="w-4 h-4" />
-              <span>Product CMS ({products.length})</span>
-            </button>
+            {allowedTabs.includes('products') && (
+              <button
+                onClick={() => { setActiveTab('products'); setIsEditingProduct(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'products' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+                <span>Product CMS ({products.length})</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => { setActiveTab('customers'); setIsEditingProduct(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                activeTab === 'customers' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              <span>Customer CRM (360)</span>
-            </button>
+            {allowedTabs.includes('customers') && (
+              <button
+                onClick={() => { setActiveTab('customers'); setIsEditingProduct(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'customers' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>Customer CRM (360)</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => { setActiveTab('operators'); setIsEditingProduct(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                activeTab === 'operators' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
-              }`}
-            >
-              <Briefcase className="w-4 h-4" />
-              <span>Direct-Sales Operators ({operators.length})</span>
-            </button>
+            {allowedTabs.includes('operators') && (
+              <button
+                onClick={() => { setActiveTab('operators'); setIsEditingProduct(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'operators' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <Briefcase className="w-4 h-4" />
+                <span>Employees & Operators ({operators.length + staffMembers.length})</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => { setActiveTab('policies'); setIsEditingProduct(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                activeTab === 'policies' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
-              }`}
-            >
-              <FileCheck className="w-4 h-4" />
-              <span>E-Policy Registry & Verifications</span>
-            </button>
+            {allowedTabs.includes('policies') && (
+              <button
+                onClick={() => { setActiveTab('policies'); setIsEditingProduct(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'policies' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <FileCheck className="w-4 h-4" />
+                <span>E-Policy Registry {isFinance ? '(Read-Only)' : '& Verifications'}</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => { setActiveTab('payments'); setIsEditingProduct(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                activeTab === 'payments' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
-              }`}
-            >
-              <CreditCard className="w-4 h-4" />
-              <span>Chapa V2 Gateway</span>
-            </button>
+            {allowedTabs.includes('payments') && (
+              <button
+                onClick={() => { setActiveTab('payments'); setIsEditingProduct(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'payments' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>{isFinance ? 'Paid Transactions & Export' : 'Chapa V2 Gateway'}</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => { setActiveTab('emails'); setIsEditingProduct(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                activeTab === 'emails' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
-              }`}
-            >
-              <Mail className="w-4 h-4" />
-              <span>Email & Automation</span>
-            </button>
+            {allowedTabs.includes('emails') && (
+              <button
+                onClick={() => { setActiveTab('emails'); setIsEditingProduct(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'emails' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <Mail className="w-4 h-4" />
+                <span>Email & Automation</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => { setActiveTab('audit'); setIsEditingProduct(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                activeTab === 'audit' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
-              }`}
-            >
-              <History className="w-4 h-4" />
-              <span>Immutable Audit Logs</span>
-            </button>
+            {allowedTabs.includes('audit') && (
+              <button
+                onClick={() => { setActiveTab('audit'); setIsEditingProduct(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'audit' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <History className="w-4 h-4" />
+                <span>Immutable Audit Logs</span>
+              </button>
+            )}
+
+            <div className="pt-3 mt-3 border-t border-[#184486]/40 space-y-1">
+              <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                Documentation
+              </div>
+              <button
+                onClick={() => { setActiveTab('guide'); setIsEditingProduct(false); setIsEditingDoc(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'guide' ? 'bg-[#c59b27] text-[#0c2550] font-bold shadow-sm' : 'hover:bg-[#12366e]/70 text-slate-200'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Platform Guide</span>
+              </button>
+            </div>
           </nav>
         </div>
 
         <div className="p-4 border-t border-[#184486]/30 text-xs text-slate-300">
-          <div className="text-white font-semibold">Administrator Session</div>
-          <div className="text-[11px] font-mono text-[#f0cb5a]">NBE Audit Active</div>
+          <div className="text-white font-semibold capitalize">
+            {currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Administrator'}
+          </div>
+          <div className="text-[11px] font-mono text-[#f0cb5a] uppercase">
+            Role: {currentRole} · NBE Audit Active
+          </div>
         </div>
       </aside>
 
-      {/* Main Admin Viewport */}
+      {/* Main Viewport */}
       <main className="flex-1 min-w-0 p-3 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-4 sm:space-y-8 overflow-y-auto overflow-x-hidden">
-        {/* Mobile Admin Navigation Bar */}
+        {/* Mobile Navigation Bar */}
         <div className="md:hidden -mx-3 px-3 pb-2.5 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto">
           {[
             { id: 'overview', label: 'Metrics' },
@@ -619,36 +995,45 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
             { id: 'subscribers', label: `Subscribers (${subscribers.length})` },
             { id: 'products', label: `Products (${products.length})` },
             { id: 'customers', label: `Customers (${customers.length})` },
-            { id: 'operators', label: `Operators (${operators.length})` },
-            { id: 'policies', label: 'E-Policies' },
-            { id: 'payments', label: 'Chapa' },
+            { id: 'operators', label: `Employees (${operators.length + staffMembers.length})` },
+            { id: 'policies', label: isFinance ? 'Policies (Read-Only)' : 'E-Policies' },
+            { id: 'payments', label: isFinance ? 'Paid Transactions' : 'Chapa' },
             { id: 'emails', label: 'Emails' },
-            { id: 'audit', label: 'Audit' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                setActiveTab(tab.id as any);
-                setIsEditingProduct(false);
-                setIsEditingDoc(false);
-              }}
-              className={`shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-[#12366e] text-white'
-                  : 'bg-white border border-slate-200 text-slate-700'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+            { id: 'audit', label: 'Audit' },
+            { id: 'guide', label: 'Platform Guide' }
+          ]
+            .filter((t) => allowedTabs.includes(t.id as AdminTab))
+            .map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab.id as AdminTab);
+                  setIsEditingProduct(false);
+                  setIsEditingDoc(false);
+                }}
+                className={`shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-[#12366e] text-white'
+                    : 'bg-white border border-slate-200 text-slate-700'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
         </div>
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-[#12366e] uppercase tracking-wider">
-              <span>Executive System Control</span>
+              <span>
+                {isFinance
+                  ? 'Finance & Treasury Operations'
+                  : isOperator
+                  ? 'Operator Control Workspace'
+                  : 'Executive System Control'}
+              </span>
               <span aria-hidden="true">·</span>
               <span>Headquarters Directorate</span>
             </div>
@@ -658,7 +1043,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
           </div>
 
           <div className="flex items-center gap-3">
-            {activeTab === 'documents' && (
+            {activeTab === 'documents' && canEditOperations && (
               <button
                 onClick={handleCreateNewDoc}
                 className="bg-[#12366e] hover:bg-[#1a4b8c] text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 shadow-sm shrink-0 self-start sm:self-auto cursor-pointer"
@@ -668,13 +1053,24 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
               </button>
             )}
 
-            {activeTab === 'products' && (
+            {activeTab === 'products' && canEditOperations && (
               <button
                 onClick={handleCreateNewProduct}
                 className="bg-[#12366e] hover:bg-[#1a4b8c] text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 shadow-sm shrink-0 self-start sm:self-auto"
               >
                 <Plus className="w-4 h-4 text-[#c59b27]" />
                 <span>Add Insurance Product</span>
+              </button>
+            )}
+
+            {activeTab === 'operators' && canOnboardEmployees && (
+              <button
+                type="button"
+                onClick={() => setShowOnboardForm(!showOnboardForm)}
+                className="bg-[#12366e] hover:bg-[#1a4b8c] text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 shadow-sm shrink-0 self-start sm:self-auto cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4 text-[#c59b27]" />
+                <span>{showOnboardForm ? 'Close Onboarding Form' : 'Onboard New Employee'}</span>
               </button>
             )}
           </div>
@@ -1422,13 +1818,33 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                               Duplicate
                             </button>
                             {p.publicStatus !== 'archived' && (
-                              <button
-                                onClick={() => handleArchiveProduct(p.productId)}
-                                className="text-rose-600 font-semibold hover:underline"
-                                title="Archive product"
-                              >
-                                Archive
-                              </button>
+                              confirmArchiveProductId === p.productId ? (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleArchiveProduct(p.productId)}
+                                    className="bg-rose-600 text-white px-2 py-0.5 rounded text-[11px] font-semibold cursor-pointer"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmArchiveProductId(null)}
+                                    className="text-slate-500 hover:text-slate-700 text-[11px] font-semibold cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmArchiveProductId(p.productId)}
+                                  className="text-rose-600 font-semibold hover:underline cursor-pointer"
+                                  title="Archive product"
+                                >
+                                  Archive
+                                </button>
+                              )
                             )}
                           </td>
                         </tr>
@@ -1547,83 +1963,350 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
           </div>
         )}
 
-        {/* TAB 4: OPERATOR MANAGEMENT */}
+        {/* TAB 4: EMPLOYEES & DIRECT-SALES OPERATORS (ONBOARDING ADMIN ONLY) */}
         {activeTab === 'operators' && (
-          <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 space-y-6">
-            <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider">
-              Direct-Sales Operator Management
-            </h3>
+          <div className="space-y-6">
+            {employeeFeedback && (
+              <div
+                className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+                  employeeFeedback.type === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : 'bg-rose-50 border-rose-200 text-rose-900'
+                }`}
+              >
+                {employeeFeedback.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-rose-600" />
+                )}
+                <span>{employeeFeedback.text}</span>
+              </div>
+            )}
 
-            <div className="border border-slate-200 rounded-xl overflow-x-auto text-xs">
-              <table className="w-full text-left min-w-[680px]">
-                <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
-                  <tr>
-                    <th className="p-3">Operator ID</th>
-                    <th className="p-3">Operator Name</th>
-                    <th className="p-3">Branch</th>
-                    <th className="p-3">Onboarded</th>
-                    <th className="p-3">Training Status</th>
-                    <th className="p-3">Account Status</th>
-                    <th className="p-3 text-right">Access Control</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {operators.map((op) => (
-                    <tr key={op.operatorId} className="hover:bg-slate-50">
-                      <td className="p-3 font-mono font-semibold text-slate-900">{op.operatorId}</td>
-                      <td className="p-3 font-semibold text-slate-900">{op.name}</td>
-                      <td className="p-3 font-mono">{op.branchId}</td>
-                      <td className="p-3 font-mono tabular-nums">{op.performanceSummary.totalAssistedOnboarded}</td>
-                      <td className="p-3">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
-                          op.trainingStatus === 'certified' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {op.trainingStatus.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
-                          op.accountStatus === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                        }`}>
-                          {op.accountStatus}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={() => handleToggleOperator(op.operatorId, op.accountStatus)}
-                          className={`text-xs font-semibold px-3 py-1 rounded transition-colors cursor-pointer ${
-                            op.accountStatus === 'active'
-                              ? 'bg-rose-50 text-rose-700 hover:bg-rose-100'
-                              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                          }`}
-                        >
-                          {op.accountStatus === 'active' ? 'Suspend Access' : 'Activate Access'}
-                        </button>
-                      </td>
+            {!canOnboardEmployees && (
+              <div className="p-4 bg-slate-100 border border-slate-300 rounded-xl text-xs text-slate-700 flex items-center gap-2.5">
+                <Lock className="w-4 h-4 text-[#12366e] shrink-0" />
+                <span>
+                  <strong>Administrator-Only Action:</strong> Your role ({currentRole}) has full operational edit rights across customers, products, and policies, but cannot onboard or alter employee accounts.
+                </span>
+              </div>
+            )}
+
+            {canOnboardEmployees && showOnboardForm && (
+              <form onSubmit={handleOnboardEmployee} className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 text-xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-[#12366e]">Onboard New Employee</h4>
+                    <p className="text-slate-500">Provision a Direct-Sales Operator, Finance Officer, or Underwriter account.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowOnboardForm(false)}
+                    className="text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={employeeForm.name}
+                      onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })}
+                      placeholder="e.g. Dawit Hailemariam"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Corporate Email *</label>
+                    <input
+                      type="email"
+                      required
+                      value={employeeForm.email}
+                      onChange={(e) => setEmployeeForm({ ...employeeForm, email: e.target.value })}
+                      placeholder="name@africainsurance.et"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Phone Number *</label>
+                    <input
+                      type="text"
+                      required
+                      value={employeeForm.phone}
+                      onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Employee Role *</label>
+                    <select
+                      value={employeeForm.role}
+                      onChange={(e) => setEmployeeForm({ ...employeeForm, role: e.target.value as any })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs text-slate-900 font-semibold"
+                    >
+                      <option value="operator">Direct-Sales Operator</option>
+                      <option value="finance">Finance Officer</option>
+                      <option value="underwriter">Underwriter / Staff</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Assigned Branch *</label>
+                    <select
+                      value={employeeForm.branchId}
+                      onChange={(e) => setEmployeeForm({ ...employeeForm, branchId: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs text-slate-900"
+                    >
+                      <option value="BR-ADDIS-HQ">BR-ADDIS-HQ (Bole Head Office)</option>
+                      <option value="BR-BOLE">BR-BOLE</option>
+                      <option value="BR-HAWASSA">BR-HAWASSA</option>
+                      <option value="BR-ADAMA">BR-ADAMA</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    className="bg-[#12366e] hover:bg-[#0e2a58] text-white font-semibold px-5 py-2.5 rounded-lg cursor-pointer"
+                  >
+                    Create & Activate Employee Record
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Direct-Sales Operators Table */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider">
+                  Direct-Sales Operators ({operators.length})
+                </h3>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl overflow-x-auto text-xs">
+                <table className="w-full text-left min-w-[680px]">
+                  <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                    <tr>
+                      <th className="p-3">Operator ID</th>
+                      <th className="p-3">Operator Name</th>
+                      <th className="p-3">Email</th>
+                      <th className="p-3">Branch</th>
+                      <th className="p-3">Training Status</th>
+                      <th className="p-3">Account Status</th>
+                      {canOnboardEmployees && <th className="p-3 text-right">Access Control</th>}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {operators.map((op) => (
+                      <tr key={op.operatorId} className="hover:bg-slate-50">
+                        <td className="p-3 font-mono font-semibold text-slate-900">{op.operatorId}</td>
+                        <td className="p-3 font-semibold text-slate-900">{op.name}</td>
+                        <td className="p-3 font-mono text-slate-600">{op.email}</td>
+                        <td className="p-3 font-mono">{op.branchId}</td>
+                        <td className="p-3">
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
+                            op.trainingStatus === 'certified' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {op.trainingStatus.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
+                            op.accountStatus === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {op.accountStatus}
+                          </span>
+                        </td>
+                        {canOnboardEmployees && (
+                          <td className="p-3 text-right">
+                            <button
+                              onClick={() => handleToggleOperator(op.operatorId, op.accountStatus)}
+                              className={`text-xs font-semibold px-3 py-1 rounded transition-colors cursor-pointer ${
+                                op.accountStatus === 'active'
+                                  ? 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                              }`}
+                            >
+                              {op.accountStatus === 'active' ? 'Suspend Access' : 'Activate Access'}
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Headquarters Staff & Finance Roster */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 space-y-4">
+              <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider">
+                Internal Staff, Finance & Underwriting Officers ({staffMembers.length})
+              </h3>
+              <div className="border border-slate-200 rounded-xl overflow-x-auto text-xs">
+                <table className="w-full text-left min-w-[680px]">
+                  <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                    <tr>
+                      <th className="p-3">Staff ID</th>
+                      <th className="p-3">Full Name</th>
+                      <th className="p-3">Email</th>
+                      <th className="p-3">Role</th>
+                      <th className="p-3">Branch</th>
+                      <th className="p-3">Status</th>
+                      {canOnboardEmployees && <th className="p-3 text-right">Access Control</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {staffMembers.map((st) => (
+                      <tr key={st.staffId} className="hover:bg-slate-50">
+                        <td className="p-3 font-mono font-semibold text-slate-900">{st.staffId}</td>
+                        <td className="p-3 font-semibold text-slate-900">{st.name}</td>
+                        <td className="p-3 font-mono text-slate-600">{st.email}</td>
+                        <td className="p-3 uppercase font-semibold text-[#12366e]">{st.role}</td>
+                        <td className="p-3 font-mono">{st.branchId}</td>
+                        <td className="p-3">
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
+                            st.accountStatus === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {st.accountStatus}
+                          </span>
+                        </td>
+                        {canOnboardEmployees && (
+                          <td className="p-3 text-right">
+                            {st.role !== 'admin' && (
+                              <button
+                                onClick={() => handleToggleStaff(st.staffId, st.accountStatus)}
+                                className={`text-xs font-semibold px-3 py-1 rounded transition-colors cursor-pointer ${
+                                  st.accountStatus === 'active'
+                                    ? 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                }`}
+                              >
+                                {st.accountStatus === 'active' ? 'Deactivate' : 'Activate'}
+                              </button>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
 
-        {/* TAB 5: E-POLICY REGISTRY & VERIFICATION LOGS */}
+        {/* TAB 5: E-POLICY REGISTRY & VERIFICATION LOGS (READ-ONLY FOR FINANCE) */}
         {activeTab === 'policies' && (
           <div className="space-y-6">
-            <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
-              <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider">
-                Authoritative E-Policy Registry
-              </h3>
-              <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-                <table className="w-full text-left">
+            {policyFeedback && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>{policyFeedback}</span>
+              </div>
+            )}
+
+            {isFinance && (
+              <div className="p-4 bg-slate-100 border border-slate-300 rounded-xl text-xs text-slate-700 flex items-center gap-2.5">
+                <Lock className="w-4 h-4 text-[#12366e] shrink-0" />
+                <span>
+                  <strong>Finance Read-Only Mode:</strong> Finance officers can inspect and export policy schedules for financial reconciliation, but cannot edit or alter policy records.
+                </span>
+              </div>
+            )}
+
+            {canEditPolicies && editingPolicy && (
+              <form onSubmit={handleSavePolicyEdit} className="bg-white border border-slate-300 rounded-xl p-6 space-y-4 text-xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-[#12366e]">
+                      Edit Policy: {editingPolicy.policyNumber}
+                    </h4>
+                    <p className="text-slate-500">Customer: {editingPolicy.customerName} · {editingPolicy.productName}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingPolicy(null)}
+                    className="text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Policy Status</label>
+                    <select
+                      value={editingPolicy.policyStatus}
+                      onChange={(e) => setEditingPolicy({ ...editingPolicy, policyStatus: e.target.value as any })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-semibold text-slate-900"
+                    >
+                      <option value="active">Active</option>
+                      <option value="suspended">Suspended</option>
+                      <option value="expired">Expired</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Expiry Date</label>
+                    <input
+                      type="date"
+                      value={editingPolicy.expiryDate}
+                      onChange={(e) => setEditingPolicy({ ...editingPolicy, expiryDate: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs font-mono text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Insured Subject</label>
+                    <input
+                      type="text"
+                      value={editingPolicy.insuredSubject}
+                      onChange={(e) => setEditingPolicy({ ...editingPolicy, insuredSubject: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    className="bg-[#12366e] hover:bg-[#0e2a58] text-white font-semibold px-5 py-2 rounded-lg cursor-pointer"
+                  >
+                    Save Policy Changes
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider">
+                  Authoritative E-Policy Registry ({policies.length})
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleExportPoliciesCsv}
+                  className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs px-3 py-1.5 rounded-lg cursor-pointer whitespace-nowrap"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#12366e]" />
+                  <span>Export Policies CSV</span>
+                </button>
+              </div>
+              <div className="border border-slate-200 rounded-xl overflow-x-auto text-xs">
+                <table className="w-full text-left min-w-[680px]">
                   <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                     <tr>
                       <th className="p-3">Policy Number</th>
                       <th className="p-3">Verification Code</th>
                       <th className="p-3">Customer</th>
+                      <th className="p-3">Premium</th>
                       <th className="p-3">Period</th>
                       <th className="p-3">Status</th>
+                      {canEditPolicies && <th className="p-3 text-right">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -1632,6 +2315,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                         <td className="p-3 font-mono font-bold text-slate-900">{p.policyNumber}</td>
                         <td className="p-3 font-mono font-bold text-[#12366e]">{p.verificationCode}</td>
                         <td className="p-3 font-medium text-slate-900">{p.customerName}</td>
+                        <td className="p-3 font-mono font-semibold tabular-nums">{p.totalPremiumETB.toLocaleString()} ETB</td>
                         <td className="p-3 font-mono text-slate-500">{p.startDate} to {p.expiryDate}</td>
                         <td className="p-3">
                           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
@@ -1640,6 +2324,17 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                             {p.policyStatus}
                           </span>
                         </td>
+                        {canEditPolicies && (
+                          <td className="p-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setEditingPolicy({ ...p })}
+                              className="text-[#12366e] font-semibold hover:underline cursor-pointer"
+                            >
+                              Edit
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -1648,14 +2343,14 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
             </div>
 
             {/* Public Verification Audit Logs */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
+            <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 space-y-4">
               <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider">
                 Public Policy Verification Access Logs
               </h3>
               <p className="text-xs text-slate-500">Every external code query is audited with timestamp, channel, and outcome.</p>
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-                <table className="w-full text-left">
+              <div className="border border-slate-200 rounded-xl overflow-x-auto text-xs">
+                <table className="w-full text-left min-w-[640px]">
                   <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                     <tr>
                       <th className="p-3">Verification ID</th>
@@ -1688,65 +2383,240 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
           </div>
         )}
 
-        {/* TAB 6: CHAPA PAYMENT GATEWAY */}
+        {/* TAB 6: PAID TRANSACTIONS LEDGER, FILTERING & EXPORT (FINANCE, ADMIN & OPERATOR) */}
         {activeTab === 'payments' && (
-          <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-6 text-xs">
-            <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider">
-              Chapa V2 Payment Gateway Administration
-            </h3>
+          <div className="space-y-6 text-xs">
+            {txExportFeedback && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>{txExportFeedback}</span>
+              </div>
+            )}
 
-            {/* Provider Configuration Status Box (Section 14 of prompt) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-slate-700 bg-slate-50 p-5 rounded-xl border border-slate-200">
-              <div>
-                <span className="text-slate-400 block text-[11px]">Payment Gateway Provider</span>
-                <strong className="text-slate-900 mt-1 block">Chapa V2 REST API</strong>
+            {/* Filtered Settlement Summary KPIs */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
+                <span className="text-slate-500 font-medium">Paid Transactions Total (Filtered)</span>
+                <div className="text-2xl font-bold text-[#12366e] font-mono tabular-nums">
+                  {filteredPaidTotalETB.toLocaleString()} ETB
+                </div>
+                <span className="text-[11px] text-emerald-700 font-semibold">
+                  {filteredPaidCount} verified paid settlements
+                </span>
               </div>
-              <div>
-                <span className="text-slate-400 block text-[11px]">Runtime Environment</span>
-                <strong className="text-emerald-700 mt-1 block font-mono">Sandbox / Test Mode (Ready for Production Secrets)</strong>
+              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
+                <span className="text-slate-500 font-medium">Matching Transactions</span>
+                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                  {filteredTransactions.length}
+                </div>
+                <span className="text-[11px] text-slate-500">
+                  Out of {enrichedTransactions.length} total gateway records
+                </span>
               </div>
-              <div>
-                <span className="text-slate-400 block text-[11px]">Webhook Signature Verification</span>
-                <strong className="text-slate-900 mt-1 block font-mono">HMAC-SHA256 (Raw Request Body)</strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[11px]">Settlement Currency</span>
-                <strong className="text-slate-900 mt-1 block font-mono">ETB (Ethiopian Birr)</strong>
+              <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
+                <span className="text-slate-500 font-medium">Gateway & Currency</span>
+                <div className="text-lg font-bold text-slate-900">Chapa V2 · ETB</div>
+                <span className="text-[11px] text-slate-500">HMAC-SHA256 Server Verified</span>
               </div>
             </div>
 
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs">
-              <strong>Security Protocol:</strong> In accordance with project rules, production secret keys are managed through server-side environment variables and are never displayed in the browser.
-            </div>
+            {/* Filter & Export Controls Bar */}
+            <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-[#c59b27]" />
+                    <span>Transactions Ledger, Filter &amp; Export</span>
+                  </h3>
+                  <p className="text-slate-500 mt-0.5">
+                    Inspect every paid transaction, filter by status, verification, date range, or ETB amount, and export reports.
+                  </p>
+                </div>
 
-            {/* Recent Transactions Table */}
-            <div className="space-y-3 pt-2">
-              <h4 className="font-bold text-slate-900 text-sm">Recent Transactions & Reconciliation</h4>
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full text-left">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleExportTransactionsCsv}
+                    className="bg-[#12366e] hover:bg-[#0e2a58] text-white font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#c59b27]" />
+                    <span>Export CSV</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportTransactionsJson}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#12366e]" />
+                    <span>Export JSON</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                <div className="lg:col-span-2 relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={txSearch}
+                    onChange={(e) => setTxSearch(e.target.value)}
+                    placeholder="Search ref, customer, policy #..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-base sm:text-xs text-slate-900"
+                  />
+                </div>
+
+                <select
+                  value={txStatusFilter}
+                  onChange={(e) => setTxStatusFilter(e.target.value as any)}
+                  aria-label="Payment Status Filter"
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs text-slate-800 font-semibold"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="successful">Paid / Successful</option>
+                  <option value="pending">Pending</option>
+                  <option value="failed">Failed / Declined</option>
+                </select>
+
+                <select
+                  value={txVerifyFilter}
+                  onChange={(e) => setTxVerifyFilter(e.target.value as any)}
+                  aria-label="Verification Filter"
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs text-slate-800"
+                >
+                  <option value="all">All Verification</option>
+                  <option value="verified_server">Verified Server</option>
+                  <option value="unverified">Pending / Unverified</option>
+                  <option value="failed_verification">Failed Verify</option>
+                </select>
+
+                <input
+                  type="date"
+                  value={txDateFrom}
+                  onChange={(e) => setTxDateFrom(e.target.value)}
+                  aria-label="From Date"
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs text-slate-800 font-mono"
+                />
+
+                <input
+                  type="date"
+                  value={txDateTo}
+                  onChange={(e) => setTxDateTo(e.target.value)}
+                  aria-label="To Date"
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base sm:text-xs text-slate-800 font-mono"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="number"
+                    placeholder="Min ETB"
+                    value={txMinAmount}
+                    onChange={(e) => setTxMinAmount(e.target.value)}
+                    className="w-28 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-base sm:text-xs font-mono text-slate-900"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Max ETB"
+                    value={txMaxAmount}
+                    onChange={(e) => setTxMaxAmount(e.target.value)}
+                    className="w-28 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-base sm:text-xs font-mono text-slate-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setTxStatusFilter(txStatusFilter === 'successful' ? 'all' : 'successful')}
+                    className={`px-3 py-1.5 rounded-lg font-semibold border transition-colors cursor-pointer ${
+                      txStatusFilter === 'successful'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Paid Only
+                  </button>
+                </div>
+
+                {(txSearch || txStatusFilter !== 'all' || txVerifyFilter !== 'all' || txDateFrom || txDateTo || txMinAmount || txMaxAmount) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTxSearch('');
+                      setTxStatusFilter('all');
+                      setTxVerifyFilter('all');
+                      setTxDateFrom('');
+                      setTxDateTo('');
+                      setTxMinAmount('');
+                      setTxMaxAmount('');
+                    }}
+                    className="text-[#12366e] font-semibold hover:underline cursor-pointer"
+                  >
+                    Reset All Filters
+                  </button>
+                )}
+              </div>
+
+              {/* Filtered Transactions Table */}
+              <div className="border border-slate-200 rounded-xl overflow-x-auto">
+                <table className="w-full text-left min-w-[820px]">
                   <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                     <tr>
-                      <th className="p-3">Merchant Reference</th>
-                      <th className="p-3">Customer ID</th>
+                      <th className="p-3">Merchant / Provider Ref</th>
+                      <th className="p-3">Customer</th>
+                      <th className="p-3">Policy &amp; Product</th>
                       <th className="p-3">Amount (ETB)</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3">Server Verified At</th>
+                      <th className="p-3">Payment Status</th>
+                      <th className="p-3">Verification</th>
+                      <th className="p-3">Timestamp</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {paymentAttempts.map((p) => (
-                      <tr key={p.paymentAttemptId} className="hover:bg-slate-50">
-                        <td className="p-3 font-mono font-semibold text-slate-900">{p.merchantReference}</td>
-                        <td className="p-3 font-mono">{p.customerId}</td>
-                        <td className="p-3 font-mono font-bold tabular-nums">{p.amountETB.toLocaleString()} ETB</td>
-                        <td className="p-3">
-                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded uppercase">
-                            {p.paymentStatus}
-                          </span>
+                    {filteredTransactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-6 text-center text-slate-500">
+                          No transactions matched the selected filters.
                         </td>
-                        <td className="p-3 font-mono text-slate-500">{p.verifiedAt || 'Pending'}</td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredTransactions.map((p) => (
+                        <tr key={p.paymentAttemptId} className="hover:bg-slate-50">
+                          <td className="p-3">
+                            <div className="font-mono font-semibold text-slate-900">{p.merchantReference}</div>
+                            {p.providerReference && (
+                              <div className="text-[11px] font-mono text-slate-500">{p.providerReference}</div>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <div className="font-semibold text-slate-900">{p.customerName}</div>
+                            <div className="text-[11px] font-mono text-slate-500">{p.customerId}</div>
+                          </td>
+                          <td className="p-3">
+                            <div className="font-mono font-semibold text-[#12366e]">{p.policyNumber}</div>
+                            <div className="text-[11px] text-slate-500 truncate max-w-[200px]">{p.productName}</div>
+                          </td>
+                          <td className="p-3 font-mono font-bold tabular-nums text-slate-900">
+                            {p.amountETB.toLocaleString()} ETB
+                          </td>
+                          <td className="p-3">
+                            <span
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
+                                p.paymentStatus === 'successful'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : p.paymentStatus === 'pending'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}
+                            >
+                              {p.paymentStatus === 'successful' ? 'paid' : p.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="p-3 font-mono text-[11px] text-slate-600">
+                            {p.verificationStatus}
+                          </td>
+                          <td className="p-3 font-mono text-slate-500 whitespace-nowrap">
+                            {(p.verifiedAt || p.createdAt).split('T')[0]}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -2201,13 +3071,33 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                               >
                                 <Edit className="w-4 h-4" />
                               </button>
-                              <button
-                                onClick={() => handleDeleteDoc(doc.id, doc.title)}
-                                title="Delete Document"
-                                className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded cursor-pointer"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {confirmDeleteDocId === doc.id ? (
+                                <span className="inline-flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteDoc(doc.id, doc.title)}
+                                    className="bg-rose-600 text-white px-2 py-0.5 rounded text-[11px] font-semibold cursor-pointer"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteDocId(null)}
+                                    className="text-slate-500 hover:text-slate-700 px-1.5 py-0.5 text-[11px] font-semibold cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteDocId(doc.id)}
+                                  title="Delete Document"
+                                  className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -2262,6 +3152,24 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
               </div>
             )}
           </div>
+        )}
+
+        {/* TAB: PLATFORM SYSTEM GUIDE & DOCUMENTATION */}
+        {activeTab === 'guide' && (
+          <PlatformGuideModule
+            role={isFinance ? 'finance' : isOperator ? 'operator' : 'admin'}
+            workspace="admin"
+            userId={currentUser?.uid}
+            onQuickNavigate={({ tab, route }) => {
+              if (route) {
+                navigate(route);
+              } else if (tab && allowedTabs.includes(tab as AdminTab)) {
+                setIsEditingProduct(false);
+                setIsEditingDoc(false);
+                setActiveTab(tab as AdminTab);
+              }
+            }}
+          />
         )}
         </div>
       </main>

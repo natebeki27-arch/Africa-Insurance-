@@ -38,11 +38,13 @@ import {
   Briefcase,
   Search,
   Check,
-  Sparkles
+  Sparkles,
+  BookOpen
 } from 'lucide-react';
 import { ProductDetailPage } from '../public/ProductDetailPage';
 import { DashboardGuidedTour, getTourStorageKey } from '../../components/DashboardGuidedTour';
 import { ResponsiveImage, getCategoryCoverImage } from '../../components/ResponsiveImage';
+import { PlatformGuideModule } from '../../components/PlatformGuideModule';
 import {
   InsurancePolicy,
   InsuranceApplication,
@@ -90,7 +92,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   const [securityFeedback, setSecurityFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const isNewAppAction = initialAction === 'new_app' || initialAction === 'new-application';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'services' | 'applications' | 'policies' | 'payments' | 'claims' | 'profile'>(
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'services' | 'applications' | 'policies' | 'payments' | 'claims' | 'profile' | 'guide'>(
     isNewAppAction ? 'applications' : 'dashboard'
   );
   const [serviceSearch, setServiceSearch] = useState('');
@@ -614,6 +616,16 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
               <User className="w-4 h-4 text-[#c59b27]" />
               <span>Profile & Security</span>
             </button>
+
+            <button
+              onClick={() => { setActiveTab('guide'); setIsCreatingApp(false); setInspectingProduct(null); }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                activeTab === 'guide' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <BookOpen className="w-4 h-4 text-[#c59b27]" />
+              <span>Platform Guide & Help</span>
+            </button>
           </nav>
         </div>
 
@@ -664,7 +676,8 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             { id: 'policies', label: `Policies (${allPolicies.length})`, tour: 'nav-policies' },
             { id: 'payments', label: 'Payments' },
             { id: 'claims', label: 'Claims', tour: 'nav-claims' },
-            { id: 'profile', label: 'Profile & Security' }
+            { id: 'profile', label: 'Profile & Security' },
+            { id: 'guide', label: 'Platform Guide' }
           ].map((item) => (
             <button
               key={item.id}
@@ -1717,6 +1730,23 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
               </label>
             </div>
           </div>
+        )}
+
+        {/* TAB 8: PLATFORM GUIDE & SYSTEM DOCUMENTATION */}
+        {activeTab === 'guide' && (
+          <PlatformGuideModule
+            role="customer"
+            userId={customerId}
+            onQuickNavigate={({ tab, route }) => {
+              if (route) {
+                navigate(route);
+              } else if (tab) {
+                setInspectingProduct(null);
+                setIsCreatingApp(false);
+                setActiveTab(tab as any);
+              }
+            }}
+          />
         )}
         </div>
       </main>

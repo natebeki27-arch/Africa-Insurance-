@@ -199,7 +199,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, navigate }) => {
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="bg-[#12366e] hover:bg-[#0e2a58] text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+              className="bg-[#12366e]/92 hover:bg-[#0e2a58] border border-white/20 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all flex items-center gap-2 shadow-sm cursor-pointer"
             >
               <User className="w-3.5 h-3.5 text-[#c59b27]" />
               <span>{t('nav.signin')}</span>

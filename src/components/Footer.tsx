@@ -35,18 +35,16 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      const res = store.addSubscriber(newsletterEmail, newsletterName, 'weekly', 'footer_signup');
-      setIsSubmitting(false);
-      if (res.success) {
-        setFeedback({ type: 'success', message: res.message });
-        setNewsletterEmail('');
-        setNewsletterName('');
-      } else {
-        setFeedback({ type: 'error', message: res.message });
-      }
-      setTimeout(() => setFeedback(null), 6000);
-    }, 400);
+    const res = store.addSubscriber(newsletterEmail, newsletterName, 'weekly', 'footer_signup');
+    setIsSubmitting(false);
+    if (res.success) {
+      setFeedback({ type: 'success', message: res.message });
+      setNewsletterEmail('');
+      setNewsletterName('');
+    } else {
+      setFeedback({ type: 'error', message: res.message });
+    }
+    setTimeout(() => setFeedback(null), 5000);
   };
 
   return (
@@ -61,7 +59,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
                 <span className="text-[11px] font-bold text-[#f0cb5a] uppercase tracking-wider">
                   {t('footer.stayInformed')}
                 </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#f0cb5a]" />
+                <span aria-hidden="true" className="text-[#f0cb5a]/70">·</span>
                 <span className="text-xs text-slate-300">{t('footer.gazette')}</span>
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
@@ -222,11 +220,6 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
                 <button onClick={() => navigate('/contact')} className="hover:text-white transition-colors cursor-pointer text-left">
                   {t('nav.contact')}
                 </button>
-              </li>
-              <li>
-                <span className="text-slate-500 cursor-not-allowed select-none">
-                  Careers
-                </span>
               </li>
             </ul>
           </div>

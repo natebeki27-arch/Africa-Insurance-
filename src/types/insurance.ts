@@ -529,3 +529,69 @@ export interface AdminUploadedDocument {
   contentSummary?: string;
   sections?: { heading: string; body: string }[];
 }
+
+export interface SiteCmsConfig {
+  configId?: string;
+  motto: string;
+  mottoAmharic: string;
+  vision: string;
+  mission: string;
+  capitalNotice: string;
+  headOfficePhone: string;
+  headOfficeEmail: string;
+  emergencyHelpline: string;
+  activeAlertBanner: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface NewsArticle {
+  id: string;
+  tag: string;
+  title: string;
+  date: string;
+  summary: string;
+  category: 'announcements' | 'news' | string;
+  image: string;
+  isFeatured: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SecurityEventRecord {
+  eventId: string;
+  uid: string;
+  eventType: string;
+  provider: string;
+  outcome: 'success' | 'failure' | 'blocked';
+  timestamp: string;
+  metadata?: Record<string, string | boolean>;
+}
+
+export type SearchEntityCategory =
+  | 'policy'
+  | 'customer'
+  | 'application'
+  | 'claim'
+  | 'payment'
+  | 'user'
+  | 'operator'
+  | 'staff'
+  | 'product'
+  | 'branch'
+  | 'document'
+  | 'audit'
+  | 'subscriber';
+
+export interface GlobalSearchHit {
+  id: string;
+  category: SearchEntityCategory;
+  title: string;
+  subtitle: string;
+  status?: string;
+  meta: string;
+  timestamp?: string;
+  score: number;
+  record: any;
+}
+

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { store } from '../../services/store';
 import { 
   Shield, 
   FileText, 
@@ -27,6 +28,7 @@ export const ClaimsPage: React.FC<ClaimsPageProps> = ({ navigate }) => {
   const [activeTab, setActiveTab] = useState<'procedure' | 'notify' | 'requirements'>('procedure');
   const [selectedClass, setSelectedClass] = useState<string>('motor');
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [submittedClaimRef, setSubmittedClaimRef] = useState('');
   const [claimForm, setClaimForm] = useState({
     policyNumber: '',
     claimantName: '',
@@ -41,6 +43,34 @@ export const ClaimsPage: React.FC<ClaimsPageProps> = ({ navigate }) => {
 
   const handleClaimSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const claimRef = `AIC-CLM-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const now = new Date().toISOString();
+    const currentUser = store.getCurrentUser();
+    const matchedPolicy = store
+      .getPolicies()
+      .find((p) => p.policyNumber.toUpperCase() === claimForm.policyNumber.trim().toUpperCase());
+    const matchedCustomer = currentUser
+      ? store.getCustomers().find((c) => c.authUid === currentUser.uid)
+      : undefined;
+
+    store.saveClaim({
+      claimId: `CLM-${Date.now()}`,
+      claimNumber: claimRef,
+      policyId: matchedPolicy?.policyId || 'POL-ONLINE-NOTICE',
+      policyNumber: claimForm.policyNumber.trim(),
+      customerId: matchedPolicy?.customerId || matchedCustomer?.customerId || currentUser?.uid || 'PUBLIC-CLAIMANT',
+      customerName: claimForm.claimantName.trim(),
+      incidentDate: claimForm.dateOfLoss || now.split('T')[0],
+      incidentLocation: claimForm.locationOfLoss.trim(),
+      description: `${claimForm.insuranceClass.toUpperCase()} — ${claimForm.lossDescription.trim()} (Tel: ${claimForm.phone.trim()})`,
+      estimatedLossETB: parseFloat(claimForm.estimatedLossETB) || 0,
+      uploadedEvidenceIds: [],
+      claimStatus: 'submitted',
+      createdAt: now,
+      updatedAt: now
+    });
+
+    setSubmittedClaimRef(claimRef);
     setFormSubmitted(true);
   };
 
@@ -343,16 +373,25 @@ export const ClaimsPage: React.FC<ClaimsPageProps> = ({ navigate }) => {
             </div>
 
             {formSubmitted ? (
-              <div className="p-8 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-3">
+              <div className="p-8 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-4">
                 <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
                 <h3 className="text-lg font-bold text-emerald-900">Notification Received Successfully</h3>
                 <p className="text-xs text-emerald-700 max-w-md mx-auto leading-relaxed">
-                  Your claim docket reference is <strong className="font-mono">AIC-CLM-{Math.floor(100000 + Math.random() * 900000)}</strong>. Our Claims Department in Addis Ababa has received your notification and will coordinate surveyor assignment shortly.
+                  Your claim docket reference is <strong className="font-mono">{submittedClaimRef}</strong>. Our Claims Department in Addis Ababa has logged your notification and will coordinate surveyor assignment shortly.
                 </p>
-                <div className="pt-2">
+                <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
                   <button
+                    type="button"
+                    onClick={() => navigate('/portal')}
+                    className="bg-[#12366e] hover:bg-[#0e2a58] text-white px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+                  >
+                    Open Customer Portal
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => {
                       setFormSubmitted(false);
+                      setSubmittedClaimRef('');
                       setClaimForm({
                         policyNumber: '',
                         claimantName: '',
@@ -365,7 +404,7 @@ export const ClaimsPage: React.FC<ClaimsPageProps> = ({ navigate }) => {
                         estimatedLossETB: ''
                       });
                     }}
-                    className="text-xs font-semibold text-emerald-800 underline cursor-pointer"
+                    className="bg-white border border-emerald-300 text-emerald-900 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
                   >
                     Submit another notification
                   </button>

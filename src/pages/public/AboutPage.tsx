@@ -87,26 +87,21 @@ export const AboutPage: React.FC<AboutPageProps> = ({ navigate }) => {
               <Sparkles className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold text-slate-900">Core Corporate Values</h3>
-            <ul className="text-xs text-slate-600 space-y-1.5 pt-1">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#12366e]" />
-                <strong className="text-slate-800">Adaptability</strong> — Swift response to market and customer needs
+            <ul className="text-xs text-slate-600 space-y-2 pt-1">
+              <li>
+                <strong className="text-slate-900">Adaptability</strong> — Swift response to market and customer needs
               </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#12366e]" />
-                <strong className="text-slate-800">Integrity</strong> — Ethical prudence & unwavering transparency
+              <li>
+                <strong className="text-slate-900">Integrity</strong> — Ethical prudence &amp; unwavering transparency
               </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#12366e]" />
-                <strong className="text-slate-800">Customer Centric</strong> — Prioritizing client protection & trust
+              <li>
+                <strong className="text-slate-900">Customer Centric</strong> — Prioritizing client protection &amp; trust
               </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#12366e]" />
-                <strong className="text-slate-800">Employee Focused</strong> — Developing competent professional talent
+              <li>
+                <strong className="text-slate-900">Employee Focused</strong> — Developing competent professional talent
               </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#12366e]" />
-                <strong className="text-slate-800">Team Work</strong> — Collective dedication toward excellence
+              <li>
+                <strong className="text-slate-900">Team Work</strong> — Collective dedication toward excellence
               </li>
             </ul>
           </div>

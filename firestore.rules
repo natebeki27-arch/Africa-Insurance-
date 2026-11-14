@@ -41,8 +41,12 @@ service cloud.firestore {
       return hasRole('operator') || isAdmin();
     }
 
+    function isFinance() {
+      return hasRole('finance') || isAdmin();
+    }
+
     function isStaff() {
-      return hasRole('staff') || isUnderwriter() || isAdmin();
+      return hasRole('staff') || isUnderwriter() || isOperator() || isAdmin();
     }
 
     // --- USERS & AUTH ---
@@ -76,13 +80,13 @@ service cloud.firestore {
 
     // --- OPERATORS ---
     match /operators/{operatorId} {
-      allow read: if isOwner(operatorId) || isStaff();
+      allow read: if isOwner(operatorId) || isStaff() || isFinance();
       allow write: if isAdmin();
     }
 
     // --- STAFF ---
     match /staff/{staffId} {
-      allow read: if isStaff();
+      allow read: if isStaff() || isFinance();
       allow write: if isAdmin();
     }
 
@@ -95,8 +99,8 @@ service cloud.firestore {
     // --- PRODUCTS & CMS ---
     match /products/{productId} {
       // Public can only view published and active products
-      allow read: if resource.data.publicStatus == 'published' || isStaff();
-      allow create, update: if isAdmin() || (hasRole('underwriter') && request.resource.data.publicStatus != 'published');
+      allow read: if resource.data.publicStatus == 'published' || isStaff() || isFinance();
+      allow create, update: if isAdmin() || isOperator() || (hasRole('underwriter') && request.resource.data.publicStatus != 'published');
       allow delete: if false; // Products must be archived, not deleted
     }
 
@@ -136,36 +140,36 @@ service cloud.firestore {
 
     // --- PAYMENT ATTEMPTS ---
     match /paymentAttempts/{attemptId} {
-      allow read: if isOwner(resource.data.customerId) || isStaff();
+      allow read: if isOwner(resource.data.customerId) || isStaff() || isFinance();
       allow create: if isAuthenticated() && request.resource.data.customerId == request.auth.uid;
-      allow update: if isStaff();
+      allow update: if isStaff() || isFinance();
       allow delete: if false;
     }
 
     // --- POLICIES (Authoritative Registry) ---
     match /policies/{policyId} {
-      allow read: if isOwner(resource.data.customerId) || isStaff();
-      allow create: if isUnderwriter() || (isAuthenticated() && request.resource.data.customerId == request.auth.uid);
-      allow update, delete: if isUnderwriter();
+      allow read: if isOwner(resource.data.customerId) || isStaff() || isFinance();
+      allow create: if isUnderwriter() || isOperator() || (isAuthenticated() && request.resource.data.customerId == request.auth.uid);
+      allow update, delete: if isUnderwriter() || isOperator();
     }
 
     // --- PUBLIC POLICY VERIFICATION INDEX (Non-PII lookup by verificationCode) ---
     match /policyVerifications/{verificationCode} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update, delete: if isUnderwriter();
+      allow update, delete: if isUnderwriter() || isOperator();
     }
 
     // --- PUBLIC POLICY VERIFICATION LOGS ---
     match /policyVerificationLogs/{logId} {
-      allow read: if isStaff();
+      allow read: if isStaff() || isFinance();
       allow create: if true; // Public verification service appends verification attempts
       allow update, delete: if false; // Immutable audit log
     }
 
     // --- AUDIT LOGS ---
     match /auditLogs/{logId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isOperator() || isFinance();
       allow create: if isAuthenticated() && request.resource.data.actorUid == request.auth.uid;
       allow update, delete: if false; // Strictly append-only
     }

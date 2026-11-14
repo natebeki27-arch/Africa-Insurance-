@@ -131,11 +131,6 @@ export const ResponsiveImage: React.FC<ResponsiveImageProps> = ({
     webpSrcSet = meta.widths.map((w) => `/assets/opt/${meta.stem}-${w}w.webp ${w}w`).join(', ');
     jpgSrcSet = meta.widths.map((w) => `/assets/opt/${meta.stem}-${w}w.jpg ${w}w`).join(', ');
     fallbackSrc = `/assets/opt/${meta.stem}-${meta.fallbackWidth}w.jpg`;
-  } else if (src.includes('images.unsplash.com/')) {
-    const cleanBase = src.split('?')[0];
-    webpSrcSet = `${cleanBase}?w=96&h=96&fit=crop&auto=format&fm=webp&q=72 96w, ${cleanBase}?w=192&h=192&fit=crop&auto=format&fm=webp&q=75 192w`;
-    jpgSrcSet = `${cleanBase}?w=96&h=96&fit=crop&auto=format&q=72 96w, ${cleanBase}?w=192&h=192&fit=crop&auto=format&q=75 192w`;
-    fallbackSrc = `${cleanBase}?w=96&h=96&fit=crop&auto=format&q=75`;
   }
 
   return (

@@ -1020,6 +1020,19 @@ export const SEED_STAFF: StaffProfile[] = [
     accountStatus: 'active',
     createdAt: '2025-10-01T08:00:00Z',
     updatedAt: '2026-01-01T08:00:00Z'
+  },
+  {
+    staffId: 'STAFF-FIN-01',
+    authUid: 'usr-fin-01',
+    name: 'Selamawit Bekele Tsegaye',
+    email: 'selamawit.finance@africainsurance.et',
+    role: 'finance',
+    department: 'finance',
+    branchId: 'BR-ADDIS-HQ',
+    permissions: ['view_payments', 'filter_transactions', 'export_financial_data', 'view_policies_readonly'],
+    accountStatus: 'active',
+    createdAt: '2025-11-15T08:00:00Z',
+    updatedAt: '2026-01-01T08:00:00Z'
   }
 ];
 

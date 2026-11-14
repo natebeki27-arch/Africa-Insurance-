@@ -216,26 +216,91 @@ class AICStore {
     if (!safeStorage.getItem(STORAGE_KEYS.AUDIT_LOGS)) {
       safeStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(SEED_AUDIT_LOGS));
     }
-    if (!safeStorage.getItem(STORAGE_KEYS.PAYMENTS)) {
-      safeStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify([
-        {
-          paymentAttemptId: 'PAY-001',
-          customerId: 'CUST-001',
-          applicationId: 'APP-2026-001',
-          quotationId: 'QUO-2026-001',
-          provider: 'chapa_v2',
-          merchantReference: 'AIC-CHAPA-2026-99182',
-          providerReference: 'CHAPA-TX-991823',
-          amountETB: 85275,
-          currency: 'ETB',
-          paymentStatus: 'successful',
-          idempotencyKey: 'IDEMP-991823-AUTH',
-          verificationStatus: 'verified_server',
-          verifiedAt: '2026-02-01T15:15:00Z',
-          createdAt: '2026-02-01T15:10:00Z',
-          updatedAt: '2026-02-01T15:15:00Z'
+    const seedPayments: PaymentAttempt[] = [
+      {
+        paymentAttemptId: 'PAY-001',
+        customerId: 'CUST-001',
+        applicationId: 'APP-2026-001',
+        quotationId: 'QUO-2026-001',
+        provider: 'chapa_v2',
+        merchantReference: 'AIC-CHAPA-2026-99182',
+        providerReference: 'CHAPA-TX-991823',
+        amountETB: 85275,
+        currency: 'ETB',
+        paymentStatus: 'successful',
+        idempotencyKey: 'IDEMP-991823-AUTH',
+        verificationStatus: 'verified_server',
+        verifiedAt: '2026-02-01T15:15:00Z',
+        createdAt: '2026-02-01T15:10:00Z',
+        updatedAt: '2026-02-01T15:15:00Z'
+      },
+      {
+        paymentAttemptId: 'PAY-002',
+        customerId: 'CUST-002',
+        applicationId: 'APP-2026-002',
+        quotationId: 'QUO-2026-002',
+        provider: 'chapa_v2',
+        merchantReference: 'AIC-CHAPA-2026-99241',
+        providerReference: 'CHAPA-TX-992410',
+        amountETB: 2580,
+        currency: 'ETB',
+        paymentStatus: 'successful',
+        idempotencyKey: 'IDEMP-992410-AUTH',
+        verificationStatus: 'verified_server',
+        verifiedAt: '2026-02-05T10:12:00Z',
+        createdAt: '2026-02-05T10:10:00Z',
+        updatedAt: '2026-02-05T10:12:00Z'
+      },
+      {
+        paymentAttemptId: 'PAY-003',
+        customerId: 'CUST-001',
+        applicationId: 'APP-2025-001',
+        quotationId: 'QUO-2025-001',
+        provider: 'chapa_v2',
+        merchantReference: 'AIC-CHAPA-2025-88123',
+        providerReference: 'CHAPA-TX-881230',
+        amountETB: 42000,
+        currency: 'ETB',
+        paymentStatus: 'successful',
+        idempotencyKey: 'IDEMP-881230-AUTH',
+        verificationStatus: 'verified_server',
+        verifiedAt: '2025-01-10T08:55:00Z',
+        createdAt: '2025-01-10T08:50:00Z',
+        updatedAt: '2025-01-10T08:55:00Z'
+      },
+      {
+        paymentAttemptId: 'PAY-004',
+        customerId: 'CUST-002',
+        applicationId: 'APP-2026-003',
+        quotationId: 'QUO-2026-003',
+        provider: 'chapa_v2',
+        merchantReference: 'AIC-CHAPA-2026-99518',
+        providerReference: 'CHAPA-TX-995180',
+        amountETB: 15575,
+        currency: 'ETB',
+        paymentStatus: 'pending',
+        idempotencyKey: 'IDEMP-995180-PEND',
+        verificationStatus: 'unverified',
+        createdAt: '2026-02-19T09:15:00Z',
+        updatedAt: '2026-02-19T09:15:00Z'
+      }
+    ];
+    const storedPayments = safeStorage.getItem(STORAGE_KEYS.PAYMENTS);
+    if (!storedPayments) {
+      safeStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(seedPayments));
+    } else {
+      try {
+        const parsed = JSON.parse(storedPayments) as PaymentAttempt[];
+        if (Array.isArray(parsed)) {
+          const existingIds = new Set(parsed.map((p) => p.paymentAttemptId));
+          const missing = seedPayments.filter((s) => !existingIds.has(s.paymentAttemptId));
+          if (missing.length > 0) {
+            safeStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify([...parsed, ...missing]));
+          }
         }
-      ]));
+      } catch {
+        safeStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(seedPayments));
+      }
     }
     if (!safeStorage.getItem(STORAGE_KEYS.EMAIL_JOBS)) {
       safeStorage.setItem(STORAGE_KEYS.EMAIL_JOBS, JSON.stringify([
@@ -348,6 +413,22 @@ class AICStore {
         registrationChannel: 'branch_walkin',
         createdAt: '2026-01-05T08:00:00Z',
         updatedAt: '2026-02-15T10:00:00Z'
+      };
+    } else if (role === 'finance') {
+      mockUser = {
+        uid: 'usr-fin-01',
+        accountType: 'finance',
+        firstName: 'Selamawit',
+        lastName: 'Bekele',
+        email: 'selamawit.finance@africainsurance.et',
+        emailVerified: true,
+        phone: '+251 91 100 0044',
+        phoneVerified: true,
+        branchId: 'BR-ADDIS-HQ',
+        accountStatus: 'active',
+        registrationChannel: 'branch_walkin',
+        createdAt: '2025-11-15T08:00:00Z',
+        updatedAt: '2026-01-01T08:00:00Z'
       };
     } else {
       mockUser = {
@@ -517,12 +598,18 @@ class AICStore {
     this.notify();
   }
 
-  // --- OPERATORS ---
+  // --- OPERATORS & STAFF (ADMIN ONLY ONBOARDING) ---
   public getOperators(): OperatorProfile[] {
     return this.readCached<OperatorProfile[]>(STORAGE_KEYS.OPERATORS, []);
   }
 
+  public getStaff(): StaffProfile[] {
+    return this.readCached<StaffProfile[]>(STORAGE_KEYS.STAFF, []);
+  }
+
   public saveOperator(op: OperatorProfile): void {
+    const actor = this.getCurrentUser();
+    if (actor && actor.accountType !== 'admin') return;
     const list = [...this.getOperators()];
     const idx = list.findIndex((item) => item.operatorId === op.operatorId);
     if (idx >= 0) {
@@ -534,7 +621,134 @@ class AICStore {
     this.notify();
   }
 
+  public recordOperatorActivity(operatorId: string, metric: 'customer' | 'application' | 'certified'): void {
+    const list = this.getOperators().map((item) => {
+      if (item.operatorId !== operatorId) return item;
+      const summary = { ...item.performanceSummary };
+      if (metric === 'customer') {
+        summary.totalAssistedOnboarded += 1;
+      } else if (metric === 'application') {
+        summary.totalApplicationsSubmitted += 1;
+      }
+      return {
+        ...item,
+        performanceSummary: summary,
+        trainingStatus: metric === 'certified' ? ('certified' as const) : item.trainingStatus,
+        updatedAt: new Date().toISOString()
+      };
+    });
+    this.writeCached(STORAGE_KEYS.OPERATORS, list);
+    this.notify();
+  }
+
+  public onboardEmployee(params: {
+    name: string;
+    email: string;
+    phone: string;
+    role: 'operator' | 'finance' | 'underwriter' | 'staff';
+    branchId: string;
+  }): { success: boolean; message: string } {
+    const actor = this.getCurrentUser();
+    if (!actor || actor.accountType !== 'admin') {
+      return {
+        success: false,
+        message: 'Permission denied: Only Administrators can onboard employees.'
+      };
+    }
+
+    const now = new Date().toISOString();
+    const cleanName = params.name.trim();
+    const cleanEmail = params.email.trim().toLowerCase();
+    const cleanPhone = params.phone.trim();
+
+    if (!cleanName || !cleanEmail || !cleanPhone) {
+      return { success: false, message: 'Name, email, and phone number are required.' };
+    }
+
+    if (params.role === 'operator') {
+      const operators = [...this.getOperators()];
+      if (operators.some((o) => o.email.toLowerCase() === cleanEmail)) {
+        return { success: false, message: 'An operator with this email already exists.' };
+      }
+      const nextNum = operators.length + 1;
+      const newOp: OperatorProfile = {
+        operatorId: `OP-${String(nextNum).padStart(3, '0')}`,
+        authUid: `usr-op-${Date.now().toString().slice(-4)}`,
+        name: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
+        branchId: params.branchId || 'BR-ADDIS-HQ',
+        supervisorId: actor.uid,
+        assignedProducts: ['PRD-MTR-01', 'PRD-TPL-02', 'PRD-FIR-04'],
+        accountStatus: 'active',
+        trainingStatus: 'not_started',
+        performanceSummary: {
+          totalAssistedOnboarded: 0,
+          totalApplicationsSubmitted: 0,
+          totalPoliciesIssued: 0,
+          complianceScorePct: 100
+        },
+        createdAt: now,
+        updatedAt: now
+      };
+      operators.unshift(newOp);
+      this.writeCached(STORAGE_KEYS.OPERATORS, operators);
+      this.logAudit({
+        actorUid: actor.uid,
+        actorName: `${actor.firstName} ${actor.lastName}`,
+        actorRole: actor.accountType,
+        action: 'EMPLOYEE_ONBOARDED',
+        resourceType: 'user',
+        resourceId: newOp.operatorId,
+        reason: `Onboarded new Direct-Sales Operator: ${newOp.name} (${newOp.branchId})`,
+        correlationId: `EMP-OP-${Date.now()}`
+      });
+      this.notify();
+      return { success: true, message: `Operator ${newOp.name} (${newOp.operatorId}) onboarded.` };
+    }
+
+    const staffList = [...this.getStaff()];
+    if (staffList.some((s) => s.email.toLowerCase() === cleanEmail)) {
+      return { success: false, message: 'An employee with this email already exists.' };
+    }
+    const prefix = params.role === 'finance' ? 'FIN' : 'UW';
+    const staffId = `STAFF-${prefix}-${String(staffList.length + 1).padStart(2, '0')}`;
+    const newStaff: StaffProfile = {
+      staffId,
+      authUid: `usr-${prefix.toLowerCase()}-${Date.now().toString().slice(-4)}`,
+      name: cleanName,
+      email: cleanEmail,
+      role: params.role,
+      department: params.role === 'finance' ? 'finance' : 'underwriting',
+      branchId: params.branchId || 'BR-ADDIS-HQ',
+      permissions:
+        params.role === 'finance'
+          ? ['view_payments', 'filter_transactions', 'export_financial_data', 'view_policies_readonly']
+          : ['review_application', 'prepare_quotation', 'approve_underwriting', 'issue_policy'],
+      accountStatus: 'active',
+      supervisorId: actor.uid,
+      createdAt: now,
+      updatedAt: now
+    };
+    staffList.unshift(newStaff);
+    this.writeCached(STORAGE_KEYS.STAFF, staffList);
+    this.logAudit({
+      actorUid: actor.uid,
+      actorName: `${actor.firstName} ${actor.lastName}`,
+      actorRole: actor.accountType,
+      action: 'EMPLOYEE_ONBOARDED',
+      resourceType: 'user',
+      resourceId: staffId,
+      reason: `Onboarded new ${params.role.toUpperCase()} employee: ${newStaff.name} (${newStaff.branchId})`,
+      correlationId: `EMP-STF-${Date.now()}`
+    });
+    this.notify();
+    return { success: true, message: `Employee ${newStaff.name} (${staffId}) onboarded.` };
+  }
+
   public toggleOperatorStatus(operatorId: string, status: 'active' | 'suspended'): void {
+    const actor = this.getCurrentUser();
+    if (actor && actor.accountType !== 'admin') return;
     const list = this.getOperators().map((item) =>
       item.operatorId === operatorId
         ? { ...item, accountStatus: status, updatedAt: new Date().toISOString() }
@@ -543,14 +757,38 @@ class AICStore {
     if (list.some((item) => item.operatorId === operatorId)) {
       this.writeCached(STORAGE_KEYS.OPERATORS, list);
       this.logAudit({
-        actorUid: this.getCurrentUser()?.uid || 'SYSTEM',
-        actorName: this.getCurrentUser()?.firstName || 'Admin',
-        actorRole: this.getCurrentUser()?.accountType || 'admin',
+        actorUid: actor?.uid || 'SYSTEM',
+        actorName: actor?.firstName || 'Admin',
+        actorRole: actor?.accountType || 'admin',
         action: status === 'suspended' ? 'OPERATOR_SUSPENDED' : 'OPERATOR_ACTIVATED',
         resourceType: 'user',
         resourceId: operatorId,
         reason: `Operator access status set to ${status}. Historical attributions intact.`,
         correlationId: `OP-STATUS-${Date.now()}`
+      });
+      this.notify();
+    }
+  }
+
+  public toggleStaffStatus(staffId: string, status: 'active' | 'inactive'): void {
+    const actor = this.getCurrentUser();
+    if (!actor || actor.accountType !== 'admin') return;
+    const list = this.getStaff().map((item) =>
+      item.staffId === staffId
+        ? { ...item, accountStatus: status, updatedAt: new Date().toISOString() }
+        : item
+    );
+    if (list.some((item) => item.staffId === staffId)) {
+      this.writeCached(STORAGE_KEYS.STAFF, list);
+      this.logAudit({
+        actorUid: actor.uid,
+        actorName: `${actor.firstName} ${actor.lastName}`,
+        actorRole: actor.accountType,
+        action: status === 'inactive' ? 'STAFF_DEACTIVATED' : 'STAFF_ACTIVATED',
+        resourceType: 'user',
+        resourceId: staffId,
+        reason: `Staff account status set to ${status}.`,
+        correlationId: `STF-STATUS-${Date.now()}`
       });
       this.notify();
     }
@@ -590,6 +828,40 @@ class AICStore {
   public getPolicyByVerificationCode(code: string): InsurancePolicy | undefined {
     const cleanCode = code.trim().toUpperCase();
     return this.getPolicies().find((p) => p.verificationCode.toUpperCase() === cleanCode);
+  }
+
+  public savePolicy(policy: InsurancePolicy): { success: boolean; message: string } {
+    const actor = this.getCurrentUser();
+    if (actor && !['admin', 'operator', 'underwriter', 'staff'].includes(actor.accountType)) {
+      return {
+        success: false,
+        message: 'Permission denied: Your role has read-only access to policies.'
+      };
+    }
+    const list = [...this.getPolicies()];
+    const idx = list.findIndex((p) => p.policyId === policy.policyId);
+    const updated: InsurancePolicy = {
+      ...policy,
+      updatedAt: new Date().toISOString()
+    };
+    if (idx >= 0) {
+      list[idx] = updated;
+    } else {
+      list.unshift(updated);
+    }
+    this.writeCached(STORAGE_KEYS.POLICIES, list);
+    this.logAudit({
+      actorUid: actor?.uid || 'SYSTEM',
+      actorName: actor ? `${actor.firstName} ${actor.lastName}` : 'System',
+      actorRole: actor?.accountType || 'admin',
+      action: idx >= 0 ? 'POLICY_UPDATED' : 'POLICY_CREATED',
+      resourceType: 'policy',
+      resourceId: policy.policyId,
+      reason: `Policy ${policy.policyNumber} updated (Status: ${policy.policyStatus})`,
+      correlationId: `POL-EDIT-${Date.now()}`
+    });
+    this.notify();
+    return { success: true, message: `Policy ${policy.policyNumber} saved successfully.` };
   }
 
   public issuePolicy(policy: InsurancePolicy): void {

@@ -5,6 +5,7 @@ import { Phone, Mail, MapPin, Clock, Send, CheckCircle2, ShieldAlert, ExternalLi
 export const ContactPage: React.FC = () => {
   const { t } = useLanguage();
   const [submitted, setSubmitted] = useState(false);
+  const [inquiryRef, setInquiryRef] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -15,6 +16,7 @@ export const ContactPage: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setInquiryRef(`AIC-INQ-${Math.floor(10000 + Math.random() * 90000)}`);
     setSubmitted(true);
   };
 
@@ -118,10 +120,29 @@ export const ContactPage: React.FC = () => {
               <p className="text-xs text-slate-500 mb-6">Our corporate team will respond within 24 operational hours.</p>
 
               {submitted ? (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 text-center space-y-2">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 text-center space-y-3">
                   <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
                   <h4 className="text-sm font-bold text-emerald-900">Inquiry Received</h4>
-                  <p className="text-xs text-emerald-700">Thank you. Your message has been routed to our corporate relations department.</p>
+                  <p className="text-xs text-emerald-700">
+                    Reference <strong className="font-mono">{inquiryRef}</strong> logged. Your message has been routed to our corporate relations department.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubmitted(false);
+                      setInquiryRef('');
+                      setFormData({
+                        name: '',
+                        phone: '',
+                        email: '',
+                        subject: 'General Inquiry',
+                        message: ''
+                      });
+                    }}
+                    className="bg-white border border-emerald-300 text-emerald-900 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+                  >
+                    Send Another Message
+                  </button>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4 text-xs">

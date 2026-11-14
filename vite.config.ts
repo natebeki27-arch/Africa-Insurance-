@@ -12,6 +12,9 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: [
+          'aic-favicon.ico',
+          'aic-favicon-32.png',
+          'aic-favicon-64.png',
           'favicon.ico',
           'favicon.png',
           'favicon-32x32.png',
@@ -58,6 +61,7 @@ export default defineConfig(() => {
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
+          ignoreURLParametersMatching: [/^v$/],
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           globIgnores: ['**/assets/*.mp4', '**/assets/*.webm', '**/assets/*.gif', '**/assets/*.jpg', '**/assets/opt/*', '**/assets/aistudio/**'],
@@ -104,9 +108,9 @@ export default defineConfig(() => {
               urlPattern: /\/assets\/.*\.(?:jpg|jpeg|png|svg|webp)$/i,
               handler: 'StaleWhileRevalidate',
               options: {
-                cacheName: 'aic-static-images',
+                cacheName: 'aic-static-images-v3',
                 expiration: {
-                  maxEntries: 60,
+                  maxEntries: 120,
                   maxAgeSeconds: 60 * 60 * 24 * 30
                 },
                 cacheableResponse: {
@@ -130,14 +134,28 @@ export default defineConfig(() => {
     build: {
       target: 'es2020',
       cssCodeSplit: true,
+      chunkSizeWarningLimit: 600,
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            if (
+              id.includes('node_modules/react/') ||
+              id.includes('node_modules/react-dom/') ||
+              id.includes('node_modules/scheduler/')
+            ) {
               return 'react-vendor';
             }
+            if (id.includes('node_modules/@firebase/auth') || id.includes('node_modules/firebase/auth')) {
+              return 'firebase-auth-vendor';
+            }
+            if (
+              id.includes('node_modules/@firebase/firestore') ||
+              id.includes('node_modules/firebase/firestore')
+            ) {
+              return 'firebase-firestore-vendor';
+            }
             if (id.includes('node_modules/firebase') || id.includes('node_modules/@firebase')) {
-              return 'firebase-vendor';
+              return 'firebase-core-vendor';
             }
             if (id.includes('node_modules/lucide-react')) {
               return 'icons-vendor';

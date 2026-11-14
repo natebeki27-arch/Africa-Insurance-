@@ -104,9 +104,14 @@ export default function App() {
       void Promise.allSettled([
         import('./pages/public/ProductsPage'),
         import('./pages/public/ProductDetailPage'),
+        import('./pages/public/VerifyPolicyPage'),
+        import('./pages/public/ClaimsPage'),
+        import('./pages/public/AboutPage'),
+        import('./pages/public/BranchesPage'),
+        import('./pages/public/MediaPage'),
+        import('./pages/public/ContactPage'),
         import('./pages/auth/LoginPage'),
-        import('./pages/customer/CustomerPortal'),
-        import('./pages/public/VerifyPolicyPage')
+        import('./pages/customer/CustomerPortal')
       ]);
     };
 
@@ -148,7 +153,7 @@ export default function App() {
 
   const navigate = (path: string) => {
     if (typeof window !== 'undefined') {
-      pulseGlobalProgress(260);
+      pulseGlobalProgress(150);
       window.location.hash = path;
       const cleanPath = path.split('?')[0];
       const queryIdx = path.indexOf('?');
@@ -164,7 +169,7 @@ export default function App() {
 
   useEffect(() => {
     const handleHashChange = () => {
-      pulseGlobalProgress(220);
+      pulseGlobalProgress(140);
       const hash = window.location.hash.replace(/^#/, '') || '/';
       const cleanPath = hash.split('?')[0];
       const queryIdx = hash.indexOf('?');
@@ -289,7 +294,7 @@ export default function App() {
       case '/admin': {
         const user = store.getCurrentUser();
         if (!user) return <SecretAdminAuthPage navigate={navigate} />;
-        if (user.accountType !== 'admin') {
+        if (!['admin', 'operator', 'finance'].includes(user.accountType)) {
           return <AccountStatusPage navigate={navigate} mode="access_denied" />;
         }
         return <AdminControlCentre navigate={navigate} />;
@@ -321,7 +326,7 @@ export default function App() {
       <OfflineIndicator />
 
       {/* Rapid Role Switcher Banner ONLY shown inside authorized internal workspaces */}
-      {isInternalWorkspace && <RoleSwitcher />}
+      {isInternalWorkspace && <RoleSwitcher navigate={navigate} />}
 
       {/* Top Navbar */}
       <Navbar currentRoute={currentRoute} navigate={navigate} />

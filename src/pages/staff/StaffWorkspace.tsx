@@ -14,7 +14,9 @@ import {
   ArrowRight,
   Clock,
   Send,
-  Building
+  Building,
+  BookOpen,
+  Briefcase
 } from 'lucide-react';
 import {
   InsuranceApplication,
@@ -22,6 +24,7 @@ import {
   Quotation,
   InsuranceClaim
 } from '../../types/insurance';
+import { PlatformGuideModule } from '../../components/PlatformGuideModule';
 
 interface StaffWorkspaceProps {
   navigate: (route: string) => void;
@@ -31,9 +34,10 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
   const currentUser = store.getCurrentUser();
   const allApplications = store.getApplications();
   const allPolicies = store.getPolicies();
+  const allClaims = store.getClaims();
   const products = store.getProducts();
 
-  const [activeTab, setActiveTab] = useState<'queue' | 'policies' | 'claims'>('queue');
+  const [activeTab, setActiveTab] = useState<'queue' | 'policies' | 'claims' | 'guide'>('queue');
   const [selectedApp, setSelectedApp] = useState<InsuranceApplication | null>(null);
 
   // Underwriting Action States
@@ -196,6 +200,31 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
     }, 2000);
   };
 
+  const handleUpdateClaimStatus = (
+    claim: InsuranceClaim,
+    nextStatus: InsuranceClaim['claimStatus'],
+    note: string
+  ) => {
+    store.saveClaim({
+      ...claim,
+      claimStatus: nextStatus,
+      assignedAdjusterId: currentUser?.uid || 'STAFF-UW-01',
+      adjudicationNotes: note
+    });
+    store.logAudit({
+      actorUid: currentUser?.uid || 'STAFF-UW-01',
+      actorName: `${currentUser?.firstName || 'Kassahun'} ${currentUser?.lastName || 'Worku'}`,
+      actorRole: 'underwriter',
+      action: `CLAIM_${nextStatus.toUpperCase()}`,
+      resourceType: 'policy',
+      resourceId: claim.claimId,
+      reason: `Claim ${claim.claimNumber} transitioned to ${nextStatus.replace('_', ' ')}`,
+      correlationId: `CLM-ADJ-${Date.now()}`
+    });
+    setActionFeedback(`Claim ${claim.claimNumber} updated to ${nextStatus.replace('_', ' ').toUpperCase()}.`);
+    setTimeout(() => setActionFeedback(null), 2200);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex overflow-x-hidden">
       {/* Staff Sidebar */}
@@ -231,6 +260,31 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
               <Shield className="w-4 h-4 text-[#c59b27]" />
               <span>Issued Policies ({allPolicies.length})</span>
             </button>
+
+            <button
+              onClick={() => { setActiveTab('claims'); setSelectedApp(null); }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                activeTab === 'claims' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <AlertCircle className="w-4 h-4 text-[#c59b27]" />
+              <span>Claims Review ({allClaims.length})</span>
+            </button>
+
+            <div className="pt-3 mt-3 border-t border-slate-100 space-y-1">
+              <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                System Docs
+              </div>
+              <button
+                onClick={() => { setActiveTab('guide'); setSelectedApp(null); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
+                  activeTab === 'guide' ? 'bg-[#12366e] text-white font-semibold' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <BookOpen className="w-4 h-4 text-[#c59b27]" />
+                <span>Platform Guide</span>
+              </button>
+            </div>
           </nav>
         </div>
 
@@ -246,8 +300,9 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
         <div className="md:hidden -mx-3 px-3 pb-2.5 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto">
           {[
             { id: 'queue', label: 'Review Queue' },
-            { id: 'issued', label: 'Issued Policies' },
-            { id: 'verifications', label: 'Verifications' }
+            { id: 'policies', label: 'Issued Policies' },
+            { id: 'claims', label: 'Claims Review' },
+            { id: 'guide', label: 'Platform Guide' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -527,6 +582,115 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
               </table>
             </div>
           </div>
+        )}
+
+        {/* TAB 3: CLAIMS REVIEW */}
+        {activeTab === 'claims' && (
+          <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-[#12366e] uppercase tracking-wider">
+                  Claims Inspection &amp; Settlement Desk
+                </h3>
+                <p className="text-xs text-slate-500">Review customer and public claim notifications, assign surveyors, and adjudicate settlements.</p>
+              </div>
+              <span className="text-xs text-slate-500 font-mono">{allClaims.length} Claims</span>
+            </div>
+
+            {allClaims.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200">
+                No claims recorded yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {allClaims.map((claim) => (
+                  <div key={claim.claimId} className="border border-slate-200 rounded-xl p-4 bg-slate-50/70 space-y-3 text-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="font-mono font-bold text-[#12366e]">{claim.claimNumber}</span>
+                        <span className="text-slate-400 mx-2">·</span>
+                        <span className="font-semibold text-slate-900">{claim.customerName}</span>
+                        <span className="text-slate-500 ml-2 font-mono">({claim.policyNumber})</span>
+                      </div>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
+                        claim.claimStatus === 'settled' || claim.claimStatus === 'approved'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : claim.claimStatus === 'declined'
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {claim.claimStatus.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    <p className="text-slate-700 leading-relaxed">{claim.description}</p>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200">
+                      <div className="text-[11px] text-slate-500">
+                        Location: <strong className="text-slate-700">{claim.incidentLocation}</strong> · Est. Loss:{' '}
+                        <strong className="font-mono text-slate-800">{claim.estimatedLossETB.toLocaleString()} ETB</strong>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {claim.claimStatus === 'submitted' && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateClaimStatus(claim, 'surveyor_assigned', 'Surveyor dispatched for 24h field inspection.')}
+                            className="bg-[#12366e] hover:bg-[#1a4b8c] text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
+                          >
+                            Assign Surveyor
+                          </button>
+                        )}
+                        {(claim.claimStatus === 'submitted' || claim.claimStatus === 'surveyor_assigned' || claim.claimStatus === 'under_investigation') && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateClaimStatus(claim, 'approved', 'Loss verified against policy coverage schedule.')}
+                            className="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
+                          >
+                            Approve Claim
+                          </button>
+                        )}
+                        {claim.claimStatus === 'approved' && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateClaimStatus(claim, 'settled', 'Discharge voucher executed and settlement disbursed.')}
+                            className="bg-emerald-800 hover:bg-emerald-900 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
+                          >
+                            Mark Settled
+                          </button>
+                        )}
+                        {claim.claimStatus !== 'settled' && claim.claimStatus !== 'declined' && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateClaimStatus(claim, 'declined', 'Claim declined after underwriting exclusion review.')}
+                            className="bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
+                          >
+                            Decline
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 4: PLATFORM GUIDE & SYSTEM DOCUMENTATION */}
+        {activeTab === 'guide' && (
+          <PlatformGuideModule
+            role="staff"
+            userId={currentUser?.uid}
+            onQuickNavigate={({ tab, route }) => {
+              if (route) {
+                navigate(route);
+              } else if (tab) {
+                setSelectedApp(null);
+                setActiveTab(tab as any);
+              }
+            }}
+          />
         )}
         </div>
       </main>

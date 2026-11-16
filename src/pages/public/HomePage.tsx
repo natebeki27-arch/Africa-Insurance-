@@ -19,6 +19,7 @@ import {
   Phone
 } from 'lucide-react';
 import { ResponsiveImage, getCategoryCoverImage, getPosterImageUrl } from '../../components/ResponsiveImage';
+import { WelcomeGooglePrompt } from '../../components/WelcomeGooglePrompt';
 
 interface HomePageProps {
   navigate: (route: string) => void;
@@ -412,6 +413,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <WelcomeGooglePrompt navigate={navigate} />
       {/* SECTION 1: HERO SECTION WITH LIVING BACKGROUND MATCHING EACH SLIDE */}
       <section className="relative bg-gradient-to-br from-[#0e2a58] via-[#12366e] to-[#184486] text-white overflow-hidden">
         {/* Dynamic Living Visual for each typography slide */}

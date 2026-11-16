@@ -541,6 +541,7 @@ export interface SiteCmsConfig {
   headOfficeEmail: string;
   emergencyHelpline: string;
   activeAlertBanner: string;
+  enableWelcomeGooglePrompt?: boolean;
   updatedAt?: string;
   updatedBy?: string;
 }

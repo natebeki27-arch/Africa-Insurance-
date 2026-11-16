@@ -20,12 +20,12 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ compact = fa
         type="button"
         onClick={install}
         title="Install AIC Portal App"
-        className={`inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#c59b27]/40 bg-amber-50 hover:bg-amber-100 text-[#12366e] font-semibold transition-colors cursor-pointer ${
-          compact ? 'px-2.5 py-1.5 text-[11px] w-full' : 'px-3 py-1.5 text-xs'
+        className={`inline-flex items-center justify-center gap-1 border border-[#c59b27]/40 bg-amber-50 hover:bg-amber-100 text-[#12366e] font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+          compact ? 'rounded-xl px-2.5 py-1.5 text-[11px] w-full' : 'rounded-lg h-7 px-2 py-1 text-[11px]'
         }`}
       >
-        <Download className="w-3.5 h-3.5 text-[#c59b27] shrink-0" />
-        <span>Install App</span>
+        <Download className="w-3 h-3 text-[#c59b27] shrink-0" />
+        <span>{compact ? 'Install App' : 'Install'}</span>
       </button>
     );
   }
@@ -36,12 +36,13 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ compact = fa
         <button
           type="button"
           onClick={() => setShowIOSGuide(true)}
-          className={`inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer ${
-            compact ? 'px-2.5 py-1.5 text-[11px] w-full' : 'px-3 py-1.5 text-xs'
+          title="Install AIC Portal App"
+          className={`inline-flex items-center justify-center gap-1 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+            compact ? 'rounded-xl px-2.5 py-1.5 text-[11px] w-full' : 'rounded-lg h-7 px-2 py-1 text-[11px]'
           }`}
         >
-          <Smartphone className="w-3.5 h-3.5 text-[#12366e] shrink-0" />
-          <span>Install App</span>
+          <Smartphone className="w-3 h-3 text-[#12366e] shrink-0" />
+          <span>{compact ? 'Install App' : 'Install'}</span>
         </button>
 
         {showIOSGuide && (

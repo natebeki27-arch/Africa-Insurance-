@@ -34,6 +34,11 @@ export default defineConfig(() => {
           theme_color: '#12366e',
           background_color: '#ffffff',
           display: 'standalone',
+          display_override: ['standalone', 'minimal-ui'],
+          orientation: 'any',
+          lang: 'en',
+          categories: ['finance', 'business'],
+          prefer_related_applications: false,
           start_url: '/',
           scope: '/',
           icons: [

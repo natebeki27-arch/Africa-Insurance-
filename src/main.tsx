@@ -7,12 +7,35 @@ import './index.css';
 
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   try {
-    registerSW({
-      immediate: true,
-      onRegisterError() {
-        // Silently ignore SW registration errors in restricted webviews/iframes
+    if (import.meta.env.PROD) {
+      registerSW({
+        immediate: true,
+        onRegisterError() {
+          // Silently ignore SW registration errors in restricted webviews/iframes
+        }
+      });
+    } else {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => {
+          registrations.forEach((registration) => {
+            void registration.unregister();
+          });
+        })
+        .catch(() => {});
+      if ('caches' in window) {
+        caches
+          .keys()
+          .then((keys) => {
+            keys.forEach((key) => {
+              if (key.includes('workbox')) {
+                void caches.delete(key);
+              }
+            });
+          })
+          .catch(() => {});
       }
-    });
+    }
   } catch {
     // Ignore unsupported environments
   }

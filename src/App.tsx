@@ -99,33 +99,9 @@ export default function App() {
       if (mounted) setAuthReady(true);
     }, 500);
 
-    // Prefetch primary route bundles immediately after first paint for instant transitions
-    const prefetchChunks = () => {
-      void Promise.allSettled([
-        import('./pages/public/ProductsPage'),
-        import('./pages/public/ProductDetailPage'),
-        import('./pages/public/VerifyPolicyPage'),
-        import('./pages/public/ClaimsPage'),
-        import('./pages/public/AboutPage'),
-        import('./pages/public/BranchesPage'),
-        import('./pages/public/MediaPage'),
-        import('./pages/public/ContactPage'),
-        import('./pages/auth/LoginPage'),
-        import('./pages/customer/CustomerPortal')
-      ]);
-    };
-
-    let idleHandle: number | undefined;
-    let idleTimeout: ReturnType<typeof setTimeout> | undefined;
-    if (typeof window !== 'undefined') {
-      if (store.getCurrentUser()) {
-        void import('./pages/customer/CustomerPortal').catch(() => {});
-      }
-      if ('requestIdleCallback' in window) {
-        idleHandle = (window as any).requestIdleCallback(prefetchChunks, { timeout: 500 });
-      } else {
-        idleTimeout = setTimeout(prefetchChunks, 150);
-      }
+    const existingUser = store.getCurrentUser();
+    if (existingUser?.accountType === 'customer') {
+      void import('./pages/customer/CustomerPortal').catch(() => {});
     }
 
     completeRedirectSignIn().then((res) => {
@@ -143,10 +119,6 @@ export default function App() {
     return () => {
       mounted = false;
       clearTimeout(safetyTimer);
-      if (idleTimeout) clearTimeout(idleTimeout);
-      if (idleHandle && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-        (window as any).cancelIdleCallback(idleHandle);
-      }
       unsubscribe();
     };
   }, []);

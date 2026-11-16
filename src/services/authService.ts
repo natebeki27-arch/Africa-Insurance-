@@ -496,9 +496,11 @@ export async function signInWithGoogle(
     if (canRedirectFallback) {
       try {
         onProgress?.('opening_provider', false);
+        setSessionItem('aic_pending_google_redirect', '1');
         await signInWithRedirect(auth, googleProvider);
         return { success: true, redirectInitiated: true };
       } catch (redirectError: any) {
+        removeSessionItem('aic_pending_google_redirect');
         const mapped = mapFirebaseAuthError(redirectError);
         return { success: false, errorCode: mapped.code, errorMessage: mapped.message };
       }
@@ -521,6 +523,10 @@ export async function signInWithGoogle(
 }
 
 export async function completeRedirectSignIn(): Promise<AuthActionResult | null> {
+  if (getSessionItem('aic_pending_google_redirect') !== '1') {
+    return null;
+  }
+  removeSessionItem('aic_pending_google_redirect');
   try {
     const result = await getRedirectResult(auth);
     if (!result || !result.user) return null;

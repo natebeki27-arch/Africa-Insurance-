@@ -179,8 +179,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
       headOfficePhone: '+251 11 663 7716 / 17 / 18 / 19',
       headOfficeEmail: 'md@africainsurancesc.com',
       emergencyHelpline: '+251 11 663 7716',
-      activeAlertBanner: 'National Bank of Ethiopia Authorized Insurer · Serving Ethiopia Since 1994',
-      enableWelcomeGooglePrompt: true
+      activeAlertBanner: 'National Bank of Ethiopia Authorized Insurer · Serving Ethiopia Since 1994'
     };
   });
 
@@ -1291,25 +1290,6 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 font-mono text-slate-900 focus:bg-white focus:outline-none focus:border-[#12366e]"
                     />
                   </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-100">
-                  <label className="flex items-start gap-3 cursor-pointer text-xs">
-                    <input
-                      type="checkbox"
-                      checked={contentConfig.enableWelcomeGooglePrompt !== false}
-                      onChange={(e) =>
-                        setContentConfig({ ...contentConfig, enableWelcomeGooglePrompt: e.target.checked })
-                      }
-                      className="mt-0.5 rounded border-slate-300 text-[#12366e]"
-                    />
-                    <span>
-                      <strong className="text-slate-900 block">Show Floating Google Sign-In Prompt on Welcome Page</strong>
-                      <span className="text-slate-500">
-                        Displays a non-blocking &quot;Continue to AIC with Google&quot; prompt card in the upper-right area for signed-out homepage visitors.
-                      </span>
-                    </span>
-                  </label>
                 </div>
               </div>
 

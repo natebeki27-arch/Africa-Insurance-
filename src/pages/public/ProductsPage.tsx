@@ -146,7 +146,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ navigate }) => {
               <div className="px-4 pb-4 sm:px-6 sm:pb-6 pt-3.5 sm:pt-4 border-t border-slate-100 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] sm:text-[11px] text-slate-500 block">Indicative Base</span>
-                  <span className="font-mono text-xs font-semibold text-slate-900 tabular-nums">
+                  <span className="font-sans text-xs font-bold text-slate-900 tabular-nums tracking-tight">
                     {product.quotationConfiguration.standardMinimumPremiumETB.toLocaleString()} ETB
                   </span>
                 </div>

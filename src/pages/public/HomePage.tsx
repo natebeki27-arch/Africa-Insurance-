@@ -616,16 +616,16 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
               <div className="px-4 pb-4 sm:px-6 sm:pb-6 pt-3.5 sm:pt-4 border-t border-slate-100 flex items-center justify-between">
                 <div className="text-[11px] sm:text-xs">
                   <span className="text-slate-500">{t('home.from')} </span>
-                  <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                  <span className="font-sans font-bold text-slate-900 tabular-nums tracking-tight">
                     {product.quotationConfiguration.standardMinimumPremiumETB.toLocaleString()} ETB
                   </span>
                 </div>
                 <button
                   onClick={() => navigate(`/insurance/${product.slug}`)}
-                  className="text-xs font-semibold text-[#12366e] hover:text-[#184486] flex items-center gap-1 group-hover:translate-x-0.5 transition-transform cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-50/90 hover:bg-[#12366e] text-[#12366e] hover:text-white border border-slate-200/90 hover:border-[#12366e] text-xs font-semibold transition-all duration-150 shadow-xs hover:shadow-md group/btn cursor-pointer whitespace-nowrap"
                 >
                   <span>{t('home.details')}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <ArrowRight className="w-3.5 h-3.5 transition-transform duration-150 group-hover/btn:translate-x-0.5" />
                 </button>
               </div>
             </div>
@@ -656,7 +656,7 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
               >
                 <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-              <div className="text-xs font-mono text-slate-600 font-semibold px-2">
+              <div className="text-xs font-sans text-slate-600 font-semibold tabular-nums px-2">
                 <span>Page {currentTestimonialPage + 1}</span>
                 <span className="text-slate-300 mx-1">/</span>
                 <span>{totalPages}</span>
@@ -758,19 +758,19 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
           {/* Social Proof Stats Bar */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 pt-2 sm:pt-4 text-center">
             <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-sm">
-              <div className="text-xl sm:text-3xl font-bold font-mono text-[#12366e]">30+</div>
+              <div className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight tabular-nums text-[#12366e]">30+</div>
               <div className="text-[11px] sm:text-xs text-slate-600 font-medium mt-1">{t('home.stat1')}</div>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-sm">
-              <div className="text-xl sm:text-3xl font-bold font-mono text-[#12366e]">100%</div>
+              <div className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight tabular-nums text-[#12366e]">100%</div>
               <div className="text-[11px] sm:text-xs text-slate-600 font-medium mt-1">{t('home.stat2')}</div>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-sm">
-              <div className="text-xl sm:text-3xl font-bold font-mono text-[#12366e]">32+</div>
+              <div className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight tabular-nums text-[#12366e]">32+</div>
               <div className="text-[11px] sm:text-xs text-slate-600 font-medium mt-1">{t('home.stat3')}</div>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-sm">
-              <div className="text-xl sm:text-3xl font-bold font-mono text-[#12366e]">98.6%</div>
+              <div className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight tabular-nums text-[#12366e]">98.6%</div>
               <div className="text-[11px] sm:text-xs text-slate-600 font-medium mt-1">{t('home.stat4')}</div>
             </div>
           </div>
@@ -808,11 +808,11 @@ export const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
 
               <div className="grid grid-cols-2 gap-4 sm:gap-8 pt-4 sm:pt-6 border-t border-slate-200/80">
                 <div>
-                  <div className="text-2xl sm:text-3xl font-bold font-mono text-[#12366e] tabular-nums">30+ Years</div>
+                  <div className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight text-[#12366e] tabular-nums">30+ Years</div>
                   <div className="text-[11px] sm:text-xs text-slate-500 mt-1">{t('home.stat1')}</div>
                 </div>
                 <div>
-                  <div className="text-2xl sm:text-3xl font-bold font-mono text-[#12366e] tabular-nums">ETB 603M+</div>
+                  <div className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight text-[#12366e] tabular-nums">ETB 603M+</div>
                   <div className="text-[11px] sm:text-xs text-slate-500 mt-1">Paid-up capital scaling to ETB 2 billion</div>
                 </div>
               </div>

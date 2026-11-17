@@ -442,7 +442,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Customers Onboarded</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {currentOperator.performanceSummary.totalAssistedOnboarded}
                 </div>
                 <span className="text-[11px] text-emerald-600 font-medium">Assisted registrations</span>
@@ -450,7 +450,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
 
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Applications Filed</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {currentOperator.performanceSummary.totalApplicationsSubmitted}
                 </div>
                 <span className="text-[11px] text-slate-600 font-medium">Underwriting pipeline</span>
@@ -458,7 +458,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
 
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Policies Issued</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {currentOperator.performanceSummary.totalPoliciesIssued}
                 </div>
                 <span className="text-[11px] text-emerald-600 font-medium">Converted policies</span>
@@ -466,7 +466,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
 
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Compliance Score</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {currentOperator.performanceSummary.complianceScorePct}%
                 </div>
                 <span className="text-[11px] text-emerald-600 font-medium">Regulatory audit pass</span>
@@ -487,7 +487,7 @@ export const OperatorPortal: React.FC<OperatorPortalProps> = ({
                   return (
                     <div key={pId} className="border border-slate-200 rounded-lg p-3.5 bg-slate-50/50 text-xs space-y-1">
                       <div className="font-bold text-slate-900">{p?.productName || pId}</div>
-                      <div className="text-[11px] text-slate-500 font-mono">Min Premium: {p?.quotationConfiguration.standardMinimumPremiumETB} ETB</div>
+                      <div className="text-[11px] text-slate-500 font-sans font-medium tabular-nums">Min Premium: {p?.quotationConfiguration.standardMinimumPremiumETB?.toLocaleString()} ETB</div>
                     </div>
                   );
                 })}

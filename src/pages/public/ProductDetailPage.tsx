@@ -223,7 +223,7 @@ Africa Insurance Company S.C., Addis Ababa, Ethiopia.
                 </button>
                 <div className="text-xs text-slate-500">
                   <span>Indicative minimum: </span>
-                  <strong className="text-slate-900 font-mono tabular-nums">
+                  <strong className="text-slate-900 font-sans font-bold tabular-nums tracking-tight">
                     {product.quotationConfiguration.standardMinimumPremiumETB.toLocaleString()} ETB
                   </strong>
                 </div>

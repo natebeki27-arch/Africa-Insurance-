@@ -753,7 +753,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             <div data-tour="overview-kpis" className="grid grid-cols-1 sm:grid-cols-3 gap-5">
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Active Policies</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {allPolicies.filter((p) => p.policyStatus === 'active').length}
                 </div>
                 <span className="text-[11px] text-emerald-600 font-medium">Fully protected</span>
@@ -761,7 +761,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
 
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Pending Applications</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {allApplications.filter((a) => a.applicationStatus !== 'approved').length}
                 </div>
                 <span className="text-[11px] text-amber-600 font-medium">In underwriting pipeline</span>
@@ -769,7 +769,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
 
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Upcoming Renewals</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {allPolicies.filter((p) => p.policyStatus === 'active').length}
                 </div>
                 <span className="text-[11px] text-slate-500 font-medium">30d reminder active</span>
@@ -1077,7 +1077,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
 
               <div className="bg-slate-900 text-white rounded-xl px-4 py-2.5 flex items-center justify-between">
                 <span className="text-[11px] text-slate-300 font-medium">Instant Quote (incl. VAT):</span>
-                <strong className="font-mono text-sm sm:text-base text-[#f0cb5a] tabular-nums">
+                <strong className="font-sans font-bold text-sm sm:text-base text-[#f0cb5a] tabular-nums tracking-tight">
                   {calculateProductQuoteETB(selectedProduct, appFormAnswers).toLocaleString()} ETB
                 </strong>
               </div>
@@ -1346,7 +1346,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                       Secure Verification Code: <strong className="font-mono text-[#12366e] bg-slate-200 px-1.5 py-0.5 rounded">{pol.verificationCode}</strong>
                     </div>
                     <div className="text-slate-500">
-                      Total Premium: <span className="font-mono font-semibold text-slate-900">{pol.totalPremiumETB.toLocaleString()} ETB</span> · Issued: {pol.issuedAt?.split('T')[0]}
+                      Total Premium: <span className="font-sans font-bold text-slate-900 tabular-nums">{pol.totalPremiumETB.toLocaleString()} ETB</span> · Issued: {pol.issuedAt?.split('T')[0]}
                     </div>
                   </div>
 
@@ -1394,7 +1394,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                       <tr key={p.paymentAttemptId} className="hover:bg-slate-50">
                         <td className="p-3 font-mono font-semibold text-slate-900">{p.merchantReference}</td>
                         <td className="p-3">Chapa V2 (Hosted)</td>
-                        <td className="p-3 font-mono font-semibold tabular-nums">{p.amountETB.toLocaleString()} ETB</td>
+                        <td className="p-3 font-sans font-bold text-slate-900 tabular-nums">{p.amountETB.toLocaleString()} ETB</td>
                         <td className="p-3">
                           <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded uppercase">
                             {p.paymentStatus}
@@ -1801,7 +1801,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                 </div>
                 <div>
                   <span className="text-slate-500 block">Gross Premium (ETB):</span>
-                  <strong className="text-slate-900 font-mono">{viewingPolicy.totalPremiumETB.toLocaleString()} ETB</strong>
+                  <strong className="text-slate-900 font-sans font-bold tabular-nums">{viewingPolicy.totalPremiumETB.toLocaleString()} ETB</strong>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Payment Reference:</span>
@@ -1923,7 +1923,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                   </div>
                   <div className="flex justify-between gap-2">
                     <span className="text-slate-500">Amount Settled:</span>
-                    <strong className="font-mono text-emerald-700">{lastIssuedPolicy.totalPremiumETB.toLocaleString()} ETB</strong>
+                    <strong className="font-sans font-bold text-emerald-700 tabular-nums">{lastIssuedPolicy.totalPremiumETB.toLocaleString()} ETB</strong>
                   </div>
                 </div>
 
@@ -1964,7 +1964,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                   </div>
                   <div className="flex justify-between gap-2">
                     <span className="text-slate-500">Test Premium (incl. VAT):</span>
-                    <strong className="font-mono text-base text-slate-900 tabular-nums">
+                    <strong className="font-sans font-bold text-base text-slate-900 tabular-nums tracking-tight">
                       {checkoutTarget.amountETB.toLocaleString()} ETB
                     </strong>
                   </div>

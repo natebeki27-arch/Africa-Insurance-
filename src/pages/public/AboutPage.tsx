@@ -121,19 +121,19 @@ export const AboutPage: React.FC<AboutPageProps> = ({ navigate }) => {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-4 border-t border-white/20">
             <div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-[#f0cb5a]">1994</div>
+              <div className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight tabular-nums text-[#f0cb5a]">1994</div>
               <div className="text-xs text-slate-300 mt-1">Founded Dec 8, 1994</div>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-[#f0cb5a]">ETB 603M+</div>
+              <div className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight tabular-nums text-[#f0cb5a]">ETB 603M+</div>
               <div className="text-xs text-slate-300 mt-1">Paid-Up Capital (June 2025)</div>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-[#f0cb5a]">100% Ethiopian</div>
+              <div className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight tabular-nums text-[#f0cb5a]">100% Ethiopian</div>
               <div className="text-xs text-slate-300 mt-1">National Underwriter</div>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-[#f0cb5a]">30+ Years</div>
+              <div className="text-2xl sm:text-3xl font-extrabold font-sans tracking-tight tabular-nums text-[#f0cb5a]">30+ Years</div>
               <div className="text-xs text-slate-300 mt-1">Continuous Solvency</div>
             </div>
           </div>

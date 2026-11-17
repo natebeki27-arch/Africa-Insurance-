@@ -391,7 +391,7 @@ export const LeadershipPage: React.FC<LeadershipPageProps> = ({ navigate, initia
             {/* Quick Capital Badge */}
             <div className="bg-[#12366e] text-white p-4 rounded-2xl shrink-0 shadow-md border border-[#c59b27]/30 text-right">
               <span className="text-[10px] uppercase font-bold text-[#f0cb5a] block">Paid-Up Capital</span>
-              <span className="text-xl font-bold font-mono">ETB 603M+</span>
+              <span className="text-xl font-extrabold font-sans tracking-tight tabular-nums">ETB 603M+</span>
               <span className="text-[11px] text-slate-300 block">Scaling to ETB 2 Billion</span>
             </div>
           </div>

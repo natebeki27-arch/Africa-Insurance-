@@ -29,7 +29,8 @@
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
-    font-feature-settings: 'cv02' 1, 'cv03' 1, 'cv04' 1, 'cv11' 1;
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: 'tnum' 1, 'lnum' 1, 'cv02' 1, 'cv03' 1, 'cv04' 1, 'cv11' 1;
     max-width: 100%;
     overflow-x: hidden;
   }
@@ -41,6 +42,7 @@
     font-size: clamp(0.875rem, 0.85rem + 0.25vw, 0.9375rem);
     line-height: 1.55;
     letter-spacing: -0.011em;
+    font-variant-numeric: tabular-nums lining-nums;
     max-width: 100%;
     overflow-x: hidden;
   }

@@ -568,7 +568,7 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
                       <td className="p-3 font-mono text-[#12366e] font-semibold">{pol.verificationCode}</td>
                       <td className="p-3 font-medium text-slate-900">{pol.customerName}</td>
                       <td className="p-3">{pol.productName}</td>
-                      <td className="p-3 font-mono font-semibold tabular-nums">{pol.totalPremiumETB.toLocaleString()} ETB</td>
+                      <td className="p-3 font-sans font-bold text-slate-900 tabular-nums">{pol.totalPremiumETB.toLocaleString()} ETB</td>
                       <td className="p-3">
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
                           pol.policyStatus === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
@@ -594,7 +594,7 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
                 </h3>
                 <p className="text-xs text-slate-500">Review customer and public claim notifications, assign surveyors, and adjudicate settlements.</p>
               </div>
-              <span className="text-xs text-slate-500 font-mono">{allClaims.length} Claims</span>
+              <span className="text-xs text-slate-500 font-sans font-semibold tabular-nums">{allClaims.length} Claims</span>
             </div>
 
             {allClaims.length === 0 ? (
@@ -628,7 +628,7 @@ export const StaffWorkspace: React.FC<StaffWorkspaceProps> = ({ navigate }) => {
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200">
                       <div className="text-[11px] text-slate-500">
                         Location: <strong className="text-slate-700">{claim.incidentLocation}</strong> · Est. Loss:{' '}
-                        <strong className="font-mono text-slate-800">{claim.estimatedLossETB.toLocaleString()} ETB</strong>
+                        <strong className="font-sans font-bold text-slate-800 tabular-nums">{claim.estimatedLossETB.toLocaleString()} ETB</strong>
                       </div>
 
                       <div className="flex flex-wrap gap-2">

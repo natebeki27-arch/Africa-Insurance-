@@ -1083,7 +1083,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Total Registered Customers</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {totalCustomers}
                 </div>
                 <span className="text-[11px] text-slate-500">Calculated from Firestore customers</span>
@@ -1091,7 +1091,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
 
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Active Issued Policies</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {activePoliciesCount}
                 </div>
                 <span className="text-[11px] text-emerald-600 font-semibold">100% Verifiable SHA-256</span>
@@ -1099,7 +1099,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
 
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Gross Issued Premium</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {grossPremiumETB.toLocaleString()} ETB
                 </div>
                 <span className="text-[11px] text-slate-500">Settled via Chapa V2</span>
@@ -1107,7 +1107,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
 
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-xs font-medium text-slate-500">Underwriting Backlog</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {pendingUnderwritingCount}
                 </div>
                 <span className="text-[11px] text-amber-600 font-medium">Awaiting review</span>
@@ -1791,7 +1791,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                             <span className="text-[10px] text-slate-400 font-mono">{p.productId}</span>
                           </td>
                           <td className="p-3 capitalize">{p.productCategory}</td>
-                          <td className="p-3 font-mono font-semibold tabular-nums">
+                          <td className="p-3 font-sans font-bold text-slate-900 tabular-nums">
                             {p.quotationConfiguration.standardMinimumPremiumETB.toLocaleString()} ETB
                           </td>
                           <td className="p-3">
@@ -2315,7 +2315,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                         <td className="p-3 font-mono font-bold text-slate-900">{p.policyNumber}</td>
                         <td className="p-3 font-mono font-bold text-[#12366e]">{p.verificationCode}</td>
                         <td className="p-3 font-medium text-slate-900">{p.customerName}</td>
-                        <td className="p-3 font-mono font-semibold tabular-nums">{p.totalPremiumETB.toLocaleString()} ETB</td>
+                        <td className="p-3 font-sans font-bold text-slate-900 tabular-nums">{p.totalPremiumETB.toLocaleString()} ETB</td>
                         <td className="p-3 font-mono text-slate-500">{p.startDate} to {p.expiryDate}</td>
                         <td className="p-3">
                           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
@@ -2397,7 +2397,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-slate-500 font-medium">Paid Transactions Total (Filtered)</span>
-                <div className="text-2xl font-bold text-[#12366e] font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-[#12366e] font-sans tracking-tight tabular-nums">
                   {filteredPaidTotalETB.toLocaleString()} ETB
                 </div>
                 <span className="text-[11px] text-emerald-700 font-semibold">
@@ -2406,7 +2406,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
               </div>
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-1">
                 <span className="text-slate-500 font-medium">Matching Transactions</span>
-                <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+                <div className="text-2xl font-extrabold text-slate-900 font-sans tracking-tight tabular-nums">
                   {filteredTransactions.length}
                 </div>
                 <span className="text-[11px] text-slate-500">
@@ -2592,7 +2592,7 @@ export const AdminControlCentre: React.FC<AdminControlCentreProps> = ({ navigate
                             <div className="font-mono font-semibold text-[#12366e]">{p.policyNumber}</div>
                             <div className="text-[11px] text-slate-500 truncate max-w-[200px]">{p.productName}</div>
                           </td>
-                          <td className="p-3 font-mono font-bold tabular-nums text-slate-900">
+                          <td className="p-3 font-sans font-bold tabular-nums text-slate-900 tracking-tight">
                             {p.amountETB.toLocaleString()} ETB
                           </td>
                           <td className="p-3">
